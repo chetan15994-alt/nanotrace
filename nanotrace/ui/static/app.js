@@ -402,6 +402,33 @@ function copyTraceId() {
   setTimeout(() => { btn.innerHTML = orig; }, 1500);
 }
 
+function switchGuideCodeTab(tabName, btn) {
+  // Update button active state
+  const buttons = document.querySelectorAll(".code-tab-btn");
+  buttons.forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+
+  // Update tab contents
+  const tabs = ["native", "langgraph", "crewai", "pydantic", "evals"];
+  tabs.forEach(t => {
+    const el = document.getElementById(`gcode-${t}`);
+    if (el) {
+      el.style.display = (t === tabName) ? "block" : "none";
+    }
+  });
+}
+
+function copySnippet(btn) {
+  const container = btn.closest(".code-box");
+  const codeEl = container.querySelector("code");
+  if (!codeEl) return;
+  navigator.clipboard.writeText(codeEl.innerText).then(() => {
+    const orig = btn.innerText;
+    btn.innerText = "Copied!";
+    setTimeout(() => { btn.innerText = orig; }, 1500);
+  });
+}
+
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)

@@ -111,6 +111,13 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             return html_file.read_text(encoding="utf-8")
         return "<h1>NanoTrace UI static files not found</h1>"
 
+    @app.get("/manual", response_class=HTMLResponse)
+    def serve_manual():
+        manual_path = Path(__file__).resolve().parent.parent.parent / "docs" / "USER_MANUAL.html"
+        if manual_path.exists():
+            return manual_path.read_text(encoding="utf-8")
+        return "<h1>User Manual not found</h1>"
+
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

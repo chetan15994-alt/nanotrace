@@ -234,8 +234,23 @@
       <div class="guide-scrollable">
         <div class="guide-content">
           
+          <!-- Sticky Quick Nav Bar -->
+          <div class="guide-nav-bar">
+            <a href="#guide-hero" class="guide-nav-btn">Overview</a>
+            <a href="#guide-architecture" class="guide-nav-btn">Visual Architecture</a>
+            <a href="#guide-healer" class="guide-nav-btn">Trace Healer (UITH)</a>
+            <a href="#guide-multiagent" class="guide-nav-btn">Multi-Agent Council</a>
+            <a href="#guide-comparison" class="guide-nav-btn">Platform Matrix</a>
+            <a href="#guide-integration" class="guide-nav-btn">Framework Code</a>
+            <a href="#guide-cloud" class="guide-nav-btn">Cloud &amp; TCO</a>
+            <a href="/manual" target="_blank" rel="noopener noreferrer" class="guide-nav-btn special">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span>Whitepaper Manual (HTML)</span>
+            </a>
+          </div>
+
           <!-- 1. Skimmable Infographic Hero -->
-          <div class="infographic-hero-container">
+          <div class="infographic-hero-container" id="guide-hero">
             <div class="hero-header-row">
               <div class="hero-title-group">
                 <div class="hero-pill-badge">
@@ -282,7 +297,7 @@
           </div>
 
           <!-- 2. The 3-Step Visual Architecture Flow (Infographic Diagram) -->
-          <div class="infographic-section">
+          <div class="infographic-section" id="guide-architecture">
             <div class="section-title-wrap">
               <div class="section-num-pill">01</div>
               <div>
@@ -390,10 +405,170 @@
             </div>
           </div>
 
-          <!-- 3. Comprehensive Comparison Table (Restored as requested!) -->
-          <div class="infographic-section">
+          <!-- 3. Universal Trace Healer (UITH) Visual Diagram -->
+          <div class="infographic-section" id="guide-healer">
             <div class="section-title-wrap">
               <div class="section-num-pill">02</div>
+              <div>
+                <h2>Universal Trace Healer (UITH)</h2>
+                <p>How NanoTrace automatically repairs broken, unstructured, or nested telemetry from any agent framework:</p>
+              </div>
+            </div>
+
+            <div class="healer-diagram-card">
+              <div class="healer-grid">
+                <!-- Chaotic Inputs -->
+                <div class="healer-box input-box">
+                  <div class="node-badge-top" style="color:var(--color-error);">INPUT • CHAOTIC LOGS</div>
+                  <h4 style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">Non-Standard Telemetry</h4>
+                  <p class="node-desc">Unstructured vendor dumps:</p>
+                  <div class="node-tag-list">
+                    <span class="node-tag" style="border-color:var(--color-error-border);">LangGraph Run Trees</span>
+                    <span class="node-tag" style="border-color:var(--color-error-border);">CrewAI Task Dumps</span>
+                    <span class="node-tag" style="border-color:var(--color-error-border);">AutoGen Message Lists</span>
+                    <span class="node-tag" style="border-color:var(--color-error-border);">Orphan Spans</span>
+                  </div>
+                  <div class="node-subtext" style="color:var(--color-error);">
+                    Missing parents, vendor token keys
+                  </div>
+                </div>
+
+                <!-- Directed Arrow 1 -->
+                <div class="schematic-arrow-track">
+                  <div class="arrow-badge" style="background:var(--color-error-subtle); color:var(--color-error);">ingest()</div>
+                  <div class="arrow-vector" style="color:var(--color-error);">
+                    <svg width="28" height="16" viewBox="0 0 32 16" fill="none">
+                      <line x1="0" y1="8" x2="28" y2="8" stroke="currentColor" stroke-width="2"></line>
+                      <polyline points="22 2 28 8 22 14" stroke="currentColor" stroke-width="2"></polyline>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- 4-Stage Normalization Pipeline -->
+                <div class="healer-box engine-box">
+                  <div class="node-badge-top active-badge">REPAIR • 4 STAGES</div>
+                  <h4 style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">Normalization Engine</h4>
+                  <div class="healer-stage-list">
+                    <div class="healer-stage-item">
+                      <span class="healer-stage-num">01</span>
+                      <div><strong>JSON Deconstructor:</strong> Recursively flattens nested child runs &amp; tasks</div>
+                    </div>
+                    <div class="healer-stage-item">
+                      <span class="healer-stage-num">02</span>
+                      <div><strong>Fuzzy Token Normalizer:</strong> Maps prompt_tokens, input_tokens to OTel GenAI</div>
+                    </div>
+                    <div class="healer-stage-item">
+                      <span class="healer-stage-num">03</span>
+                      <div><strong>Temporal Interval Grafter:</strong> Re-links lost spans by enclosing start/end times</div>
+                    </div>
+                    <div class="healer-stage-item">
+                      <span class="healer-stage-num">04</span>
+                      <div><strong>Soft Error Detector:</strong> Catches 404, 429, tracebacks inside return values</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Directed Arrow 2 -->
+                <div class="schematic-arrow-track">
+                  <div class="arrow-badge" style="background:var(--color-success-subtle); color:var(--color-success);">healed</div>
+                  <div class="arrow-vector" style="color:var(--color-success);">
+                    <svg width="28" height="16" viewBox="0 0 32 16" fill="none">
+                      <line x1="0" y1="8" x2="28" y2="8" stroke="currentColor" stroke-width="2"></line>
+                      <polyline points="22 2 28 8 22 14" stroke="currentColor" stroke-width="2"></polyline>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Standardized Output -->
+                <div class="healer-box output-box">
+                  <div class="node-badge-top" style="color:var(--color-success);">OUTPUT • CANONICAL</div>
+                  <h4 style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">Standard Telemetry</h4>
+                  <p class="node-desc">Unified format:</p>
+                  <div class="node-tag-list">
+                    <span class="node-tag" style="border-color:var(--color-success-border);">OTel GenAI v1.27</span>
+                    <span class="node-tag" style="border-color:var(--color-success-border);">Single Root trace_id</span>
+                    <span class="node-tag" style="border-color:var(--color-success-border);">DuckDB Columnar</span>
+                  </div>
+                  <div class="node-subtext" style="color:var(--color-success);">
+                    Ready for waterfall &amp; evals
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Multi-Agent Orchestration Flow -->
+          <div class="infographic-section" id="guide-multiagent">
+            <div class="section-title-wrap">
+              <div class="section-num-pill">03</div>
+              <div>
+                <h2>Multi-Agent Orchestration &amp; Trace Hierarchy</h2>
+                <p>How NanoTrace tracks supervisor routers and specialist agents with zero configuration:</p>
+              </div>
+            </div>
+
+            <div class="diagram-container" style="margin-bottom: 0;">
+              <svg class="visual-graphic" viewBox="0 0 920 230" xmlns="http://www.w3.org/2000/svg">
+                <!-- Supervisor Root -->
+                <rect x="310" y="10" width="300" height="42" rx="6" fill="#1e40af" />
+                <text x="460" y="28" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">StartupOrchestratorSupervisor [ROOT SPAN]</text>
+                <text x="460" y="42" font-size="8.5" fill="#bfdbfe" text-anchor="middle">TraceID: 48d5b... • Total Duration: 78.2ms</text>
+
+                <!-- Lines to subagents -->
+                <line x1="380" y1="52" x2="160" y2="88" stroke="#94a3b8" stroke-width="1.5" />
+                <line x1="430" y1="52" x2="360" y2="88" stroke="#94a3b8" stroke-width="1.5" />
+                <line x1="490" y1="52" x2="560" y2="88" stroke="#94a3b8" stroke-width="1.5" />
+                <line x1="540" y1="52" x2="760" y2="88" stroke="#94a3b8" stroke-width="1.5" />
+
+                <!-- Router -->
+                <rect x="60" y="88" width="200" height="40" rx="5" fill="#f8fafc" stroke="#cbd5e1" />
+                <text x="160" y="105" font-size="9.5" font-weight="700" fill="#0f172a" text-anchor="middle">Intent Router</text>
+                <text x="160" y="118" font-size="8" fill="#64748b" text-anchor="middle">chat gpt-4o-mini (12ms)</text>
+
+                <!-- Technical Specialist -->
+                <rect x="270" y="88" width="180" height="40" rx="5" fill="#eff6ff" stroke="#93c5fd" />
+                <text x="360" y="105" font-size="9.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">TechnicalArchitect</text>
+                <text x="360" y="118" font-size="8" fill="#2563eb" text-anchor="middle">Sub-Agent Span (42ms)</text>
+
+                <!-- Financial Specialist -->
+                <rect x="470" y="88" width="180" height="40" rx="5" fill="#fdf2f8" stroke="#fbcfe8" />
+                <text x="560" y="105" font-size="9.5" font-weight="700" fill="#831843" text-anchor="middle">FinancialAdvisor</text>
+                <text x="560" y="118" font-size="8" fill="#db2777" text-anchor="middle">Sub-Agent Span (48ms)</text>
+
+                <!-- Executive Consensus -->
+                <rect x="670" y="88" width="180" height="40" rx="5" fill="#ecfdf5" stroke="#a7f3d0" />
+                <text x="760" y="105" font-size="9.5" font-weight="700" fill="#065f46" text-anchor="middle">Executive Consensus</text>
+                <text x="760" y="118" font-size="8" fill="#059669" text-anchor="middle">chat gpt-4o Synthesis</text>
+
+                <!-- Tools under Tech Specialist -->
+                <line x1="330" y1="128" x2="280" y2="162" stroke="#93c5fd" stroke-width="1.2" />
+                <rect x="190" y="162" width="180" height="32" rx="4" fill="#ffffff" stroke="#bfdbfe" />
+                <text x="280" y="177" font-size="8.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">tool: benchmark_latency_db</text>
+                <text x="280" y="187" font-size="7.5" fill="#64748b" text-anchor="middle">22ms • DuckDB vs Postgres</text>
+
+                <line x1="390" y1="128" x2="430" y2="162" stroke="#93c5fd" stroke-width="1.2" />
+                <rect x="380" y="162" width="150" height="32" rx="4" fill="#ffffff" stroke="#bfdbfe" />
+                <text x="455" y="177" font-size="8.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">tool: infra_cost_estimator</text>
+                <text x="455" y="187" font-size="7.5" fill="#64748b" text-anchor="middle">15ms • TCO model</text>
+
+                <!-- Tools under Finance Specialist -->
+                <line x1="530" y1="128" x2="570" y2="162" stroke="#fbcfe8" stroke-width="1.2" />
+                <rect x="540" y="162" width="150" height="32" rx="4" fill="#ffffff" stroke="#fbcfe8" />
+                <text x="615" y="177" font-size="8.5" font-weight="600" fill="#831843" text-anchor="middle">tool: runway_calculator</text>
+                <text x="615" y="187" font-size="7.5" fill="#64748b" text-anchor="middle">14ms • Burn rate</text>
+
+                <line x1="590" y1="128" x2="710" y2="162" stroke="#fbcfe8" stroke-width="1.2" />
+                <rect x="700" y="162" width="150" height="32" rx="4" fill="#ffffff" stroke="#fbcfe8" />
+                <text x="775" y="177" font-size="8.5" font-weight="600" fill="#831843" text-anchor="middle">tool: unit_economics</text>
+                <text x="775" y="187" font-size="7.5" fill="#64748b" text-anchor="middle">16ms • CAC / LTV</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- 5. Comprehensive Comparison Table -->
+          <div class="infographic-section" id="guide-comparison">
+            <div class="section-title-wrap">
+              <div class="section-num-pill">04</div>
               <div>
                 <h2>Platform Comparison: Save Cost &amp; Infrastructure</h2>
                 <p>Detailed architectural differences between NanoTrace and traditional observability platforms:</p>
@@ -464,76 +639,160 @@
             </div>
           </div>
 
-          <!-- 4. Code Integration Walkthrough -->
-          <div class="infographic-section">
+          <!-- 6. Interactive Framework Code Tabs & Integration Walkthrough -->
+          <div class="infographic-section" id="guide-integration">
             <div class="section-title-wrap">
-              <div class="section-num-pill">03</div>
+              <div class="section-num-pill">05</div>
               <div>
-                <h2>How to Integrate in 3 Steps</h2>
-                <p>Add NanoTrace to any Python agent or LLM application in seconds:</p>
+                <h2>Interactive Code Integration</h2>
+                <p>Plug NanoTrace into any agent framework with 3 lines of code:</p>
               </div>
             </div>
 
-            <div class="step-card">
-              <div class="step-num">1</div>
-              <div class="step-body">
-                <h4>Initialize once in your project</h4>
-                <p>Creates a local embedded DuckDB database file in <code>./.traces/nanotrace.duckdb</code>.</p>
-                <div class="code-box">
-                  <code>import nanotrace
+            <!-- Tabs Header -->
+            <div class="code-tabs-header">
+              <button class="code-tab-btn active" onclick="switchGuideCodeTab('native', this)">Standard Decorators</button>
+              <button class="code-tab-btn" onclick="switchGuideCodeTab('langgraph', this)">LangGraph</button>
+              <button class="code-tab-btn" onclick="switchGuideCodeTab('crewai', this)">CrewAI</button>
+              <button class="code-tab-btn" onclick="switchGuideCodeTab('pydantic', this)">PydanticAI</button>
+              <button class="code-tab-btn" onclick="switchGuideCodeTab('evals', this)">DeepEval &amp; Ragas</button>
+            </div>
 
-# Initialize local zero-overhead engine
-nanotrace.init()</code>
+            <!-- Code Tab 1: Native -->
+            <div class="code-tab-content active" id="gcode-native">
+              <div class="code-box">
+                <div class="code-panel-top-row">
+                  <span style="color:var(--text-muted); font-size:0.7rem;">Python Native Integration</span>
+                  <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
                 </div>
-              </div>
-            </div>
+                <code>import nanotrace
 
-            <div class="step-card">
-              <div class="step-num">2</div>
-              <div class="step-body">
-                <h4>Decorate agents, tools, and subagents</h4>
-                <p>Parent-child execution hierarchies, arguments, tool calls, and LLM steps are automatically tracked.</p>
-                <div class="code-box">
-                  <code>@nanotrace.trace_tool(name="search_database")
+nanotrace.init()
+
+@nanotrace.trace_tool(name="search_database")
 def search(query: str):
-    return {"results": ["Relevant document content"]}
+    return {"results": ["Relevant agent knowledge"]}
 
 @nanotrace.trace_agent(name="ResearchAgent")
-def run_agent(user_query: str):
-    docs = search(user_query)
+def run_agent(query: str):
+    docs = search(query)
     with nanotrace.span("llm_reasoning", attributes={"gen_ai.request.model": "gpt-4o-mini"}):
-        # Your OpenAI / Anthropic / Gemini call here
-        return "Final agent answer"
+        return f"Synthesized answer for: {query}"
 
-run_agent("Evaluate AI systems")</code>
-                </div>
+run_agent("How to build local-first observability?")</code>
               </div>
             </div>
 
-            <div class="step-card">
-              <div class="step-num">3</div>
-              <div class="step-body">
-                <h4>Run Evaluations (DeepEval / Ragas / Heuristics)</h4>
-                <p>Convert your traces directly into evaluation test cases without custom parsing.</p>
-                <div class="code-box">
-                  <code># 1. Load traces into a TraceDataset
-dataset = nanotrace.load_traces(limit=20)
-
-# 2. Convert directly to DeepEval LLMTestCase objects
-test_cases = dataset.to_deepeval()
-
-# 3. Or convert to Ragas EvaluationDataset
-ragas_dataset = dataset.to_ragas()
-
-# 4. Or run instant local heuristic evaluators (0 tokens consumed!)
-diagnostics = dataset.run_heuristics()</code>
+            <!-- Code Tab 2: LangGraph -->
+            <div class="code-tab-content" id="gcode-langgraph" style="display:none;">
+              <div class="code-box">
+                <div class="code-panel-top-row">
+                  <span style="color:var(--text-muted); font-size:0.7rem;">LangGraph StateGraph Integration</span>
+                  <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
                 </div>
+                <code>import nanotrace
+from langgraph.graph import StateGraph, START, END
+
+nanotrace.init()
+
+@nanotrace.trace_tool(name="calculate_portfolio_risk")
+def calculate_risk(state):
+    return {"risk_score": 0.32, "status": "balanced"}
+
+@nanotrace.trace_agent(name="PortfolioRebalancerGraph")
+def execute_rebalance(portfolio_data: dict):
+    # Your compiled LangGraph workflow automatically captures spans
+    result = calculate_risk(portfolio_data)
+    return {"decision": "APPROVED", "risk": result["risk_score"]}
+
+execute_rebalance({"stocks": 60, "bonds": 40})</code>
+              </div>
+            </div>
+
+            <!-- Code Tab 3: CrewAI -->
+            <div class="code-tab-content" id="gcode-crewai" style="display:none;">
+              <div class="code-box">
+                <div class="code-panel-top-row">
+                  <span style="color:var(--text-muted); font-size:0.7rem;">CrewAI Task Integration</span>
+                  <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
+                </div>
+                <code>import nanotrace
+from crewai import Agent, Task, Crew
+
+nanotrace.init()
+
+@nanotrace.trace_tool(name="market_research_search")
+def run_search(topic: str):
+    return {"trends": ["Local-first DuckDB", "Sub-15us tracing"]}
+
+@nanotrace.trace_agent(name="ProductLaunchCrew")
+def launch_product_campaign(campaign_name: str):
+    data = run_search(campaign_name)
+    with nanotrace.span("crew_synthesis", attributes={"crew.task": "launch"}):
+        return f"Campaign launched for {campaign_name} with {len(data['trends'])} insights"
+
+launch_product_campaign("AI Observability 2.0")</code>
+              </div>
+            </div>
+
+            <!-- Code Tab 4: PydanticAI -->
+            <div class="code-tab-content" id="gcode-pydantic" style="display:none;">
+              <div class="code-box">
+                <div class="code-panel-top-row">
+                  <span style="color:var(--text-muted); font-size:0.7rem;">PydanticAI Strict Schema Integration</span>
+                  <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
+                </div>
+                <code>import nanotrace
+from pydantic import BaseModel, Field
+
+nanotrace.init()
+
+class DiagnosisReport(BaseModel):
+    condition: str
+    urgency: str
+    confidence: float
+
+@nanotrace.trace_tool(name="vital_signs_checker")
+def check_vitals(pulse: int, o2: int):
+    return {"status": "normal" if pulse &lt; 100 and o2 &gt; 95 else "alert"}
+
+@nanotrace.trace_agent(name="MedicalTriageAgent")
+def triage_patient(symptoms: str):
+    vitals = check_vitals(pulse=76, o2=98)
+    return DiagnosisReport(condition="Stable", urgency="LOW", confidence=0.98)
+
+report = triage_patient("Mild seasonal symptoms")</code>
+              </div>
+            </div>
+
+            <!-- Code Tab 5: Evals -->
+            <div class="code-tab-content" id="gcode-evals" style="display:none;">
+              <div class="code-box">
+                <div class="code-panel-top-row">
+                  <span style="color:var(--text-muted); font-size:0.7rem;">Trace-to-Eval Bridges (DeepEval &amp; Ragas)</span>
+                  <button class="code-copy-btn" onclick="copySnippet(this)">Copy</button>
+                </div>
+                <code>import nanotrace
+
+# 1. Load traces into a TraceDataset
+dataset = nanotrace.load_traces(limit=50)
+
+# 2. Bridge directly to DeepEval test cases
+test_cases = dataset.to_deepeval()
+# Ready for: deepeval.evaluate(test_cases, metrics=[AnswerRelevancyMetric()])
+
+# 3. Or bridge directly to Ragas EvaluationDataset
+ragas_data = dataset.to_ragas()
+# Ready for: ragas.evaluate(ragas_data)
+
+# 4. Or run instant local heuristic checks (0 cost, 0 API tokens!)
+diagnostics = dataset.run_heuristics()</code>
               </div>
             </div>
           </div>
 
-          <!-- 4. Collapsible Deep-Dive: Cloud Hosting, Trade-Offs & Scaling -->
-          <div class="infographic-section">
+          <!-- 7. Collapsible Deep-Dive: Cloud Hosting, Trade-Offs & Scaling -->
+          <div class="infographic-section" id="guide-cloud">
             <details class="collapsible-guide-card">
               <summary class="collapsible-summary">
                 <div class="summary-left">

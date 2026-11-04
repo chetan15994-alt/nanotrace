@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NanoTrace | Technical Architecture & Operational User Manual</title>
+  <meta name="description" content="Consultant-grade technical architecture, workflows, and operational manual for NanoTrace: The DuckDB of AI Observability.">
+  <style>
+    /* -------------------------------------------------------------------------
+       EXECUTIVE CONSULTANT-GRADE DESIGN SYSTEM (LIGHT / DARK THEMES)
+       ------------------------------------------------------------------------- */
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Courier New", monospace;
+
+      /* Light Theme (Executive Crisp) */
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-subtle: #f1f5f9;
+      --bg-code: #0f172a;
+      --text-code: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --border-accent: #cbd5e1;
+
+      --accent-primary: #2563eb;
+      --accent-subtle: #eff6ff;
+      --accent-border: #bfdbfe;
+      --accent-text: #1d4ed8;
+
+      --color-success: #059669;
+      --color-success-bg: #ecfdf5;
+      --color-success-border: #a7f3d0;
+
+      --color-warning: #d97706;
+      --color-warning-bg: #fffbeb;
+      --color-warning-border: #fde68a;
+
+      --color-error: #dc2626;
+      --color-error-bg: #fef2f2;
+      --color-error-border: #fecaca;
+
+      --color-purple: #7c3aed;
+      --color-purple-bg: #f5f3ff;
+      --color-purple-border: #ddd6fe;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --sidebar-width: 290px;
+    }
+
+    [data-theme="dark"] {
+      --bg-page: #090d16;
+      --bg-card: #0f172a;
+      --bg-card-subtle: #1e293b;
+      --bg-code: #020617;
+      --text-code: #f1f5f9;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border-color: #1e293b;
+      --border-accent: #334155;
+
+      --accent-primary: #3b82f6;
+      --accent-subtle: #172554;
+      --accent-border: #1e40af;
+      --accent-text: #60a5fa;
+
+      --color-success: #10b981;
+      --color-success-bg: #064e3b;
+      --color-success-border: #047857;
+
+      --color-warning: #f59e0b;
+      --color-warning-bg: #451a03;
+      --color-warning-border: #b45309;
+
+      --color-error: #ef4444;
+      --color-error-bg: #450a0a;
+      --color-error-border: #b91c1c;
+
+      --color-purple: #a855f7;
+      --color-purple-bg: #3b0764;
+      --color-purple-border: #7e22ce;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 15px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* -------------------------------------------------------------------------
+       EXECUTIVE SIDEBAR NAVIGATION
+       ------------------------------------------------------------------------- */
+    .sidebar {
+      width: var(--sidebar-width);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .sidebar-brand {
+      padding: 24px 20px 18px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      border: 1px solid var(--accent-border);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .sidebar-nav {
+      padding: 16px 12px;
+      flex: 1;
+    }
+
+    .nav-group-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 10px 12px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-card-subtle);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+
+    .nav-num {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      width: 18px;
+    }
+
+    .nav-item.active .nav-num {
+      color: var(--accent-text);
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .print-btn {
+      background: var(--accent-primary);
+      color: #ffffff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+
+    .print-btn:hover {
+      opacity: 0.9;
+    }
+
+    /* -------------------------------------------------------------------------
+       MAIN CONTENT CONTAINER
+       ------------------------------------------------------------------------- */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      padding: 40px 60px 80px;
+      max-width: 1200px;
+    }
+
+    /* -------------------------------------------------------------------------
+       EXECUTIVE COVER HEADER
+       ------------------------------------------------------------------------- */
+    .doc-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      margin-bottom: 40px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .doc-header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #2563eb 0%, #059669 50%, #7c3aed 100%);
+    }
+
+    .doc-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .doc-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      line-height: 1.2;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .doc-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 860px;
+      line-height: 1.55;
+    }
+
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .meta-pill {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    /* -------------------------------------------------------------------------
+       CONTENT SECTIONS & CARDS
+       ------------------------------------------------------------------------- */
+    .section-block {
+      margin-bottom: 50px;
+      scroll-margin-top: 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .section-idx {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-text);
+      background: var(--accent-subtle);
+      border: 1px solid var(--accent-border);
+      padding: 4px 9px;
+      border-radius: var(--radius-sm);
+    }
+
+    .section-header h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--text-primary);
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Executive Callout (McKinsey Style) */
+    .executive-callout {
+      border-left: 4px solid var(--accent-primary);
+      background: var(--accent-subtle);
+      padding: 16px 20px;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      margin-bottom: 24px;
+    }
+
+    .callout-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--accent-text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .callout-body {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* -------------------------------------------------------------------------
+       VISUAL DIAGRAM CONTAINERS (CONSULTANT GRAPHICS)
+       ------------------------------------------------------------------------- */
+    .diagram-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .diagram-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diagram-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* SVG Styling */
+    svg.visual-graphic {
+      width: 100%;
+      height: auto;
+      display: block;
+      font-family: var(--font-sans);
+    }
+
+    /* -------------------------------------------------------------------------
+       GRID & COMPARISON MATRIX
+       ------------------------------------------------------------------------- */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .feature-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .feature-card h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .feature-card p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* Table Styles */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      margin-bottom: 24px;
+    }
+
+    table.exec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: left;
+    }
+
+    table.exec-table th {
+      background: var(--bg-card-subtle);
+      color: var(--text-primary);
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    table.exec-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    table.exec-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.exec-table tr:hover td {
+      background: var(--bg-card-subtle);
+    }
+
+    .col-highlight {
+      background: var(--accent-subtle) !important;
+      font-weight: 600;
+      color: var(--accent-text) !important;
+    }
+
+    /* Code Panel */
+    .code-container {
+      background: var(--bg-code);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-accent);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: #94a3b8;
+    }
+
+    .code-content {
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: var(--text-code);
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #f1f5f9;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Print Stylesheet */
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+        font-size: 11pt;
+      }
+      .sidebar, .theme-toggle-btn, .print-btn, .copy-btn {
+        display: none !important;
+      }
+      .main-wrapper {
+        margin-left: 0;
+        padding: 0;
+        max-width: 100%;
+      }
+      .doc-header {
+        border: none;
+        box-shadow: none;
+        padding: 0 0 20pt 0;
+        margin-bottom: 20pt;
+        border-bottom: 2pt solid #000000;
+      }
+      .section-block {
+        page-break-inside: avoid;
+        margin-bottom: 30pt;
+      }
+      .diagram-container, .card, .table-container {
+        border: 1pt solid #cbd5e1;
+        box-shadow: none;
+        page-break-inside: avoid;
+      }
+      .code-container {
+        background: #f8fafc;
+        border: 1pt solid #cbd5e1;
+      }
+      .code-content {
+        color: #0f172a;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .sidebar {
+        display: none;
+      }
+      .main-wrapper {
+        margin-left: 0;
+        padding: 20px;
+      }
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =======================================================================
+       STICKY EXECUTIVE SIDEBAR
+       ======================================================================= -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-pill">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Architecture Guide
+      </div>
+      <div class="brand-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-primary)">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        NanoTrace
+      </div>
+      <div class="brand-subtitle">The DuckDB of AI Observability</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">Executive &amp; Systems</div>
+      <a href="#summary" class="nav-item active"><span class="nav-num">01</span> Executive Summary</a>
+      <a href="#topology" class="nav-item"><span class="nav-num">02</span> System Topology</a>
+      <a href="#lifecycle" class="nav-item"><span class="nav-num">03</span> Span Lifecycle &amp; Timing</a>
+      
+      <div class="nav-group-title">Integration &amp; Patterns</div>
+      <a href="#decision-tree" class="nav-item"><span class="nav-num">04</span> API Decision Tree</a>
+      <a href="#multi-agent" class="nav-item"><span class="nav-num">05</span> Multi-Agent Orchestration</a>
+      <a href="#healer" class="nav-item"><span class="nav-num">06</span> Universal Trace Healer</a>
+      <a href="#frameworks" class="nav-item"><span class="nav-num">07</span> Top 10 Frameworks</a>
+
+      <div class="nav-group-title">Analytics &amp; Operations</div>
+      <a href="#evals" class="nav-item"><span class="nav-num">08</span> Trace-to-Eval Pipeline</a>
+      <a href="#cloud-economics" class="nav-item"><span class="nav-num">09</span> Local vs Cloud TCO</a>
+      <a href="#cli-reference" class="nav-item"><span class="nav-num">10</span> CLI Reference</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeToggleBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <span>Theme</span>
+      </button>
+      <button class="print-btn" onclick="window.print()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Print / PDF
+      </button>
+    </div>
+  </aside>
+
+  <!-- =======================================================================
+       MAIN CONSULTANT MANUAL CONTENT
+       ======================================================================= -->
+  <main class="main-wrapper">
+
+    <!-- Executive Document Header -->
+    <header class="doc-header">
+      <div class="doc-meta-bar">
+        <span>DOCUMENT ID: NT-ARCH-2026-LTS</span>
+        <span>SPECIFICATION: CNCF OPENTELEMETRY GENAI v1.27</span>
+        <span>CLASSIFICATION: TECHNICAL WHITEPAPER</span>
+      </div>
+      <h1 class="doc-title">NanoTrace Technical User Manual &amp; Architecture Specification</h1>
+      <p class="doc-subtitle">
+        An in-process, zero-overhead OpenTelemetry tracing and evaluation lakehouse engine for enterprise AI agents, multi-agent orchestrators, and production LLM applications.
+      </p>
+      <div class="meta-pills">
+        <span class="meta-pill">Latency: &lt; 15 µs lock-free</span>
+        <span class="meta-pill">Storage: Embedded DuckDB &amp; Parquet</span>
+        <span class="meta-pill">Infrastructure: $0 / Zero Server Footprint</span>
+        <span class="meta-pill">Egress: 100% Local / Zero PII Leakage</span>
+      </div>
+    </header>
+
+    <!-- SECTION 01: Executive Summary & Value Equation -->
+    <section class="section-block" id="summary">
+      <div class="section-header">
+        <span class="section-idx">01</span>
+        <h2>Executive Summary &amp; Core Value Equation</h2>
+      </div>
+
+      <div class="executive-callout">
+        <div class="callout-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          Executive Takeaway
+        </div>
+        <div class="callout-body">
+          Traditional AI observability platforms impose a heavy dual penalty: <strong>20–80ms HTTP network blocking latency</strong> on every LLM agent turn, paired with <strong>$100s–$1,000s monthly cloud ingestion costs</strong> or 4GB Docker cluster requirements. NanoTrace solves this by running completely in-process using an in-memory ring buffer and embedded DuckDB storage—providing enterprise OpenTelemetry GenAI compliance at true zero infrastructure cost.
+        </div>
+      </div>
+
+      <!-- Comparison Cards -->
+      <div class="grid-4">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success); border:1px solid var(--color-success-border);">&lt; 15 µs Latency</span>
+          <h3>Zero Main-Thread Block</h3>
+          <p>Spans enqueue into a lock-free memory ring buffer in microseconds. No synchronous HTTP network requests during agent execution.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--accent-subtle); color:var(--accent-text); border:1px solid var(--accent-border);">$0 Infrastructure</span>
+          <h3>Single Pip Install</h3>
+          <p>No Postgres, ClickHouse, Redis, or Docker daemon. Embedded DuckDB stores traces directly in a single local columnar file.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-purple-bg); color:var(--color-purple); border:1px solid var(--color-purple-border);">100% Data Privacy</span>
+          <h3>Zero Data Egress</h3>
+          <p>Sensitive prompts, financial figures, and patient PII never leave your VPC or developer laptop. HIPAA &amp; SOC2 compliant by default.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-warning-bg); color:var(--color-warning); border:1px solid var(--color-warning-border);">Automated Healing</span>
+          <h3>Universal Healer</h3>
+          <p>Ingests non-standard or messy logs from LangGraph, CrewAI, and AutoGen, automatically grafting orphan spans and standardizing tokens.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 02: End-to-End System Topology -->
+    <section class="section-block" id="topology">
+      <div class="section-header">
+        <span class="section-idx">02</span>
+        <h2>End-to-End System Topology &amp; 4-Plane Architecture</h2>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            System Topology: 4 Decoupled Architectural Planes
+          </div>
+          <div class="diagram-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Execution</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#059669;"></span> Telemetry</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Storage</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Analytics</div>
+          </div>
+        </div>
+
+        <!-- High-Precision Responsive SVG Diagram -->
+        <svg class="visual-graphic" viewBox="0 0 960 480" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background Plane 1: Execution Plane -->
+          <rect x="20" y="20" width="920" height="95" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" />
+          <text x="40" y="42" font-size="12" font-weight="700" fill="#1e40af" letter-spacing="0.5">PLANE 1: EXECUTION PLANE (User Application Process)</text>
+          
+          <rect x="40" y="55" width="200" height="45" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="55" y="77" font-size="11" font-weight="700" fill="#1e3a8a">Agent Orchestrator</text>
+          <text x="55" y="91" font-size="9" fill="#64748b" font-family="monospace">@trace_agent(root)</text>
+
+          <rect x="260" y="55" width="200" height="45" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="275" y="77" font-size="11" font-weight="700" fill="#1e3a8a">Domain Specialist Sub-Agent</text>
+          <text x="275" y="91" font-size="9" fill="#64748b" font-family="monospace">@trace_agent(specialist)</text>
+
+          <rect x="480" y="55" width="200" height="45" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="495" y="77" font-size="11" font-weight="700" fill="#1e3a8a">Tool &amp; API Execution</text>
+          <text x="495" y="91" font-size="9" fill="#64748b" font-family="monospace">@trace_tool(name)</text>
+
+          <rect x="700" y="55" width="220" height="45" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="715" y="77" font-size="11" font-weight="700" fill="#1e3a8a">Foundation Models (LLM)</text>
+          <text x="715" y="91" font-size="9" fill="#64748b">OpenAI, Anthropic, Gemini, Bedrock</text>
+
+          <!-- Directed Arrows Down to Telemetry Plane -->
+          <line x1="480" y1="115" x2="480" y2="135" stroke="#2563eb" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+
+          <!-- Background Plane 2: Telemetry Plane -->
+          <rect x="20" y="135" width="920" height="105" rx="8" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.5" />
+          <text x="40" y="157" font-size="12" font-weight="700" fill="#065f46" letter-spacing="0.5">PLANE 2: TELEMETRY PLANE (NanoTrace In-Process Core)</text>
+
+          <rect x="40" y="170" width="260" height="55" rx="6" fill="#ffffff" stroke="#6ee7b7" stroke-width="1.2" />
+          <text x="55" y="192" font-size="11" font-weight="700" fill="#064e3b">ContextVars Execution Stack</text>
+          <text x="55" y="206" font-size="9.5" fill="#059669">Auto-binds trace_id &amp; parent_span_id</text>
+          <text x="55" y="218" font-size="8.5" fill="#64748b">Thread-safe &amp; Asyncio-safe context</text>
+
+          <rect x="330" y="170" width="290" height="55" rx="6" fill="#ffffff" stroke="#6ee7b7" stroke-width="1.2" />
+          <text x="345" y="192" font-size="11" font-weight="700" fill="#064e3b">Lock-Free Ring Buffer</text>
+          <text x="345" y="206" font-size="9.5" fill="#059669">Main-thread enqueue: &lt; 15 µs</text>
+          <text x="345" y="218" font-size="8.5" fill="#64748b">Zero critical-path blocking / 10K capacity</text>
+
+          <rect x="650" y="170" width="270" height="55" rx="6" fill="#ffffff" stroke="#6ee7b7" stroke-width="1.2" />
+          <text x="665" y="192" font-size="11" font-weight="700" fill="#064e3b">Micro-Batch Daemon Worker</text>
+          <text x="665" y="206" font-size="9.5" fill="#059669">Asynchronous flush every 250 ms</text>
+          <text x="665" y="218" font-size="8.5" fill="#64748b">Vectorized multi-row buffer drain</text>
+
+          <!-- Directed Arrows Down to Storage Plane -->
+          <line x1="480" y1="240" x2="480" y2="260" stroke="#059669" stroke-width="2" stroke-dasharray="4" />
+
+          <!-- Background Plane 3: Storage Plane -->
+          <rect x="20" y="260" width="920" height="95" rx="8" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" />
+          <text x="40" y="282" font-size="12" font-weight="700" fill="#92400e" letter-spacing="0.5">PLANE 3: STORAGE PLANE (Local-First Columnar Lakehouse)</text>
+
+          <rect x="40" y="295" width="420" height="45" rx="6" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2" />
+          <text x="55" y="315" font-size="11" font-weight="700" fill="#78350f">DuckDB Columnar Store (.traces/nanotrace.duckdb)</text>
+          <text x="55" y="329" font-size="9" fill="#b45309">Vectorized execution • Instant SQL analytics • Zero database administration</text>
+
+          <rect x="480" y="295" width="440" height="45" rx="6" fill="#ffffff" stroke="#fcd34d" stroke-width="1.2" />
+          <text x="495" y="315" font-size="11" font-weight="700" fill="#78350f">ZSTD Compressed Parquet Export (traces.parquet)</text>
+          <text x="495" y="329" font-size="9" fill="#b45309">10x compression • Portable object store lake (S3 / Cloudflare R2 / GCS)</text>
+
+          <!-- Directed Arrows Down to Analytics Plane -->
+          <line x1="480" y1="355" x2="480" y2="375" stroke="#d97706" stroke-width="2" stroke-dasharray="4" />
+
+          <!-- Background Plane 4: Analytics Plane -->
+          <rect x="20" y="375" width="920" height="85" rx="8" fill="#faf5ff" stroke="#ddd6fe" stroke-width="1.5" />
+          <text x="40" y="397" font-size="12" font-weight="700" fill="#5b21b6" letter-spacing="0.5">PLANE 4: ANALYTICS &amp; CONSUMPTION PLANE</text>
+
+          <rect x="40" y="407" width="270" height="42" rx="6" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.2" />
+          <text x="55" y="425" font-size="11" font-weight="700" fill="#4c1d95">Interactive Dashboard UI</text>
+          <text x="55" y="439" font-size="9" fill="#6d28d9">Waterfalls, token meters, flamegraphs (:7777)</text>
+
+          <rect x="330" y="407" width="290" height="42" rx="6" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.2" />
+          <text x="345" y="425" font-size="11" font-weight="700" fill="#4c1d95">Trace-to-Eval Bridge</text>
+          <text x="345" y="439" font-size="9" fill="#6d28d9">DeepEval test cases &amp; Ragas datasets</text>
+
+          <rect x="640" y="407" width="280" height="42" rx="6" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.2" />
+          <text x="655" y="425" font-size="11" font-weight="700" fill="#4c1d95">Direct Analytical SQL &amp; CLI</text>
+          <text x="655" y="439" font-size="9" fill="#6d28d9">nanotrace stats • P95 latency &amp; token spend</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- SECTION 03: Span Lifecycle & Microsecond Timing -->
+    <section class="section-block" id="lifecycle">
+      <div class="section-header">
+        <span class="section-idx">03</span>
+        <h2>Span Execution Lifecycle &amp; Timing Breakdown</h2>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Sequence Diagram: Sub-15 Microsecond In-Process Dispatch
+          </div>
+        </div>
+
+        <!-- High-Precision Sequence Diagram SVG -->
+        <svg class="visual-graphic" viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg">
+          <!-- Lifelines -->
+          <line x1="120" y1="50" x2="120" y2="390" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4" />
+          <line x1="330" y1="50" x2="330" y2="390" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4" />
+          <line x1="540" y1="50" x2="540" y2="390" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4" />
+          <line x1="740" y1="50" x2="740" y2="390" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4" />
+          <line x1="880" y1="50" x2="880" y2="390" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4" />
+
+          <!-- Actor Headers -->
+          <rect x="40" y="15" width="160" height="35" rx="6" fill="#1e293b" />
+          <text x="120" y="37" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Agent Execution Thread</text>
+
+          <rect x="250" y="15" width="160" height="35" rx="6" fill="#2563eb" />
+          <text x="330" y="37" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">ContextVars Stack</text>
+
+          <rect x="460" y="15" width="160" height="35" rx="6" fill="#059669" />
+          <text x="540" y="37" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">In-Memory Ring Buffer</text>
+
+          <rect x="660" y="15" width="160" height="35" rx="6" fill="#d97706" />
+          <text x="740" y="37" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Daemon Flush Worker</text>
+
+          <rect x="830" y="15" width="100" height="35" rx="6" fill="#7c3aed" />
+          <text x="880" y="37" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">DuckDB</text>
+
+          <!-- Step 1 -->
+          <line x1="120" y1="80" x2="330" y2="80" stroke="#2563eb" stroke-width="1.8" />
+          <polygon points="325,76 333,80 325,84" fill="#2563eb" />
+          <text x="135" y="74" font-size="10" font-weight="600" fill="#1e293b">1. Enter @trace_agent / span()  [Read parent_span_id &amp; start_ns]</text>
+
+          <!-- Step 2: Agent executes -->
+          <rect x="110" y="95" width="20" height="70" rx="3" fill="#e2e8f0" stroke="#94a3b8" />
+          <text x="140" y="135" font-size="10.5" font-weight="600" fill="#475569">2. Execute Agent Logic, Tools, and LLM Calls (e.g. 150ms)</text>
+
+          <!-- Step 3: Exit & build span -->
+          <line x1="120" y1="180" x2="330" y2="180" stroke="#2563eb" stroke-width="1.8" />
+          <polygon points="325,176 333,180 325,184" fill="#2563eb" />
+          <text x="135" y="174" font-size="10" font-weight="600" fill="#1e293b">3. Function return [Capture end_ns, status, tokens]</text>
+
+          <!-- Step 4: Ultra-fast Enqueue -->
+          <line x1="120" y1="215" x2="540" y2="215" stroke="#059669" stroke-width="2.2" />
+          <polygon points="535,210 545,215 535,220" fill="#059669" />
+          <text x="210" y="208" font-size="11" font-weight="700" fill="#047857">4. buffer.push(span)  [⚡️ &lt; 15 µs LOCK-FREE ENQUEUE]</text>
+
+          <!-- Note: Main Thread Free -->
+          <rect x="60" y="235" width="440" height="26" rx="4" fill="#ecfdf5" stroke="#a7f3d0" />
+          <text x="75" y="252" font-size="10" font-weight="700" fill="#065f46">MAIN AGENT THREAD IS UNBLOCKED IMMEDIATELY — ZERO HTTP DELAY</text>
+
+          <!-- Step 5: Background Batch Drain -->
+          <line x1="740" y1="290" x2="540" y2="290" stroke="#d97706" stroke-width="1.8" stroke-dasharray="3" />
+          <polygon points="545,286 537,290 545,294" fill="#d97706" />
+          <text x="560" y="284" font-size="10" font-weight="600" fill="#92400e">5. Every 250ms: worker.drain(batch_size=500)</text>
+
+          <!-- Step 6: Vectorized Write to DuckDB -->
+          <line x1="740" y1="330" x2="880" y2="330" stroke="#7c3aed" stroke-width="2" />
+          <polygon points="875,326 883,330 875,334" fill="#7c3aed" />
+          <text x="750" y="324" font-size="10" font-weight="600" fill="#5b21b6">6. DuckDB bulk insert</text>
+
+          <rect x="680" y="348" width="240" height="24" rx="4" fill="#faf5ff" stroke="#ddd6fe" />
+          <text x="695" y="364" font-size="9" font-weight="600" fill="#6d28d9">Vectorized columnar write to disk</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- SECTION 04: API Decision Tree & Instrumentation -->
+    <section class="section-block" id="decision-tree">
+      <div class="section-header">
+        <span class="section-idx">04</span>
+        <h2>API Decision Tree &amp; Instrumentation Matrix</h2>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            Decision Tree: How to Instrument Your Application
+          </div>
+        </div>
+
+        <svg class="visual-graphic" viewBox="0 0 960 380" xmlns="http://www.w3.org/2000/svg">
+          <!-- Root Decision -->
+          <rect x="360" y="15" width="240" height="45" rx="6" fill="#1e293b" />
+          <text x="480" y="35" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">What are you instrumenting?</text>
+          <text x="480" y="49" font-size="9.5" fill="#94a3b8" text-anchor="middle">Select the optimal NanoTrace API</text>
+
+          <!-- Branch 1: Agent -->
+          <line x1="390" y1="60" x2="120" y2="110" stroke="#cbd5e1" stroke-width="1.8" />
+          <rect x="20" y="110" width="200" height="110" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5" />
+          <text x="35" y="132" font-size="11" font-weight="700" fill="#1e40af">Top-Level Agent</text>
+          <text x="35" y="148" font-size="9.5" fill="#3b82f6" font-family="monospace">@nanotrace.trace_agent</text>
+          <text x="35" y="168" font-size="9" fill="#475569">• Creates root / sub-agent span</text>
+          <text x="35" y="182" font-size="9" fill="#475569">• Captures agent arguments &amp; result</text>
+          <text x="35" y="196" font-size="9" fill="#475569">• Propagates W3C context to child tools</text>
+
+          <!-- Branch 2: Tool -->
+          <line x1="440" y1="60" x2="350" y2="110" stroke="#cbd5e1" stroke-width="1.8" />
+          <rect x="250" y="110" width="200" height="110" rx="8" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.5" />
+          <text x="265" y="132" font-size="11" font-weight="700" fill="#065f46">Function / Tool / API</text>
+          <text x="265" y="148" font-size="9.5" fill="#059669" font-family="monospace">@nanotrace.trace_tool</text>
+          <text x="265" y="168" font-size="9" fill="#475569">• Links under active parent agent</text>
+          <text x="265" y="182" font-size="9" fill="#475569">• Sanitizes inputs/outputs to JSON</text>
+          <text x="265" y="196" font-size="9" fill="#475569">• Records execution status &amp; errors</text>
+
+          <!-- Branch 3: Custom Context -->
+          <line x1="520" y1="60" x2="600" y2="110" stroke="#cbd5e1" stroke-width="1.8" />
+          <rect x="500" y="110" width="200" height="110" rx="8" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5" />
+          <text x="515" y="132" font-size="11" font-weight="700" fill="#92400e">Fine-Grained Code Block</text>
+          <text x="515" y="148" font-size="9.5" fill="#d97706" font-family="monospace">with nanotrace.span()</text>
+          <text x="515" y="168" font-size="9" fill="#475569">• Inline LLM reasoning steps</text>
+          <text x="515" y="182" font-size="9" fill="#475569">• Custom token counts &amp; model name</text>
+          <text x="515" y="196" font-size="9" fill="#475569">• Flexible context manager scope</text>
+
+          <!-- Branch 4: Non-Standard / Logs -->
+          <line x1="570" y1="60" x2="830" y2="110" stroke="#cbd5e1" stroke-width="1.8" />
+          <rect x="730" y="110" width="210" height="110" rx="8" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1.5" />
+          <text x="745" y="132" font-size="11" font-weight="700" fill="#5b21b6">Unstructured / External Logs</text>
+          <text x="745" y="148" font-size="9.5" fill="#7c3aed" font-family="monospace">nanotrace.ingest(data)</text>
+          <text x="745" y="168" font-size="9" fill="#475569">• Invokes Universal Trace Healer</text>
+          <text x="745" y="182" font-size="9" fill="#475569">• Repairs broken or orphan spans</text>
+          <text x="745" y="196" font-size="9" fill="#475569">• Converts vendor JSON to OTel</text>
+
+          <!-- Common Sink Convergence -->
+          <line x1="120" y1="220" x2="480" y2="280" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3" />
+          <line x1="350" y1="220" x2="480" y2="280" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3" />
+          <line x1="600" y1="220" x2="480" y2="280" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3" />
+          <line x1="835" y1="220" x2="480" y2="280" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3" />
+
+          <rect x="280" y="280" width="400" height="65" rx="8" fill="#0f172a" />
+          <text x="480" y="305" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">Canonical OpenTelemetry GenAI v1.27 Spans</text>
+          <text x="480" y="322" font-size="10" fill="#38bdf8" text-anchor="middle">Unified Schema • DuckDB Columnar Flush • Instant Analytics</text>
+        </svg>
+      </div>
+
+      <!-- Quickstart Code Sample -->
+      <div class="code-container">
+        <div class="code-header">
+          <span>Python Application Code Example</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy Snippet</button>
+        </div>
+        <pre class="code-content"><code>import nanotrace
+
+# 1. Initialize local engine (creates ./.traces/nanotrace.duckdb)
+nanotrace.init()
+
+# 2. Instrument tools
+@nanotrace.trace_tool(name="vector_search")
+def search_knowledge_base(query: str):
+    return {"hits": ["Found relevant system design document"]}
+
+# 3. Instrument primary agent
+@nanotrace.trace_agent(name="CustomerSupportAgent", agent_type="support_triage")
+def run_support_agent(user_prompt: str):
+    docs = search_knowledge_base(user_prompt)
+    with nanotrace.span("llm_reasoning", attributes={"gen_ai.request.model": "gpt-4o-mini"}):
+        return f"Resolution for '{user_prompt}' based on: {docs['hits'][0]}"
+
+# Execute query
+response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
+      </div>
+    </section>
+
+    <!-- SECTION 05: Multi-Agent Systems & Context Propagation -->
+    <section class="section-block" id="multi-agent">
+      <div class="section-header">
+        <span class="section-idx">05</span>
+        <h2>Multi-Agent Orchestration &amp; Distributed Context Tree</h2>
+      </div>
+
+      <p style="color:var(--text-secondary); margin-bottom: 18px; font-size:0.9rem;">
+        In sophisticated agent architectures, a supervisor routes queries across multiple specialized agents. NanoTrace maintains parent-child relationships through Python's <code>contextvars</code>, ensuring every sub-agent and tool belongs to one cohesive trace hierarchy.
+      </p>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Showcase: AI Startup Executive Council (Trace Tree Structure)
+          </div>
+        </div>
+
+        <svg class="visual-graphic" viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- Root Supervisor -->
+          <rect x="330" y="15" width="300" height="55" rx="8" fill="#1e40af" stroke="#60a5fa" stroke-width="2" />
+          <text x="480" y="38" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">StartupOrchestratorSupervisor [ROOT]</text>
+          <text x="480" y="53" font-size="9.5" fill="#bfdbfe" text-anchor="middle">TraceID: 48d5b... | Root Span | Total: 78.2ms</text>
+
+          <!-- Branch to Router -->
+          <line x1="400" y1="70" x2="160" y2="120" stroke="#94a3b8" stroke-width="1.5" />
+          <rect x="60" y="120" width="200" height="50" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" />
+          <text x="160" y="142" font-size="10.5" font-weight="700" fill="#0f172a" text-anchor="middle">Intent Router</text>
+          <text x="160" y="156" font-size="9" fill="#64748b" text-anchor="middle">chat gpt-4o-mini • 12ms</text>
+
+          <!-- Branch to Tech Specialist -->
+          <line x1="450" y1="70" x2="360" y2="120" stroke="#94a3b8" stroke-width="1.5" />
+          <rect x="260" y="120" width="200" height="50" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="360" y="142" font-size="10.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">TechnicalArchitectAgent</text>
+          <text x="360" y="156" font-size="9" fill="#2563eb" text-anchor="middle">Sub-Agent Span • 42ms</text>
+
+          <!-- Tech Tools -->
+          <line x1="330" y1="170" x2="270" y2="210" stroke="#93c5fd" stroke-width="1.2" />
+          <rect x="180" y="210" width="180" height="40" rx="5" fill="#ffffff" stroke="#bfdbfe" />
+          <text x="270" y="228" font-size="9.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">tool: benchmark_latency_db</text>
+          <text x="270" y="240" font-size="8.5" fill="#64748b" text-anchor="middle">22ms • DuckDB vs Postgres</text>
+
+          <line x1="390" y1="170" x2="450" y2="210" stroke="#93c5fd" stroke-width="1.2" />
+          <rect x="370" y="210" width="160" height="40" rx="5" fill="#ffffff" stroke="#bfdbfe" />
+          <text x="450" y="228" font-size="9.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">tool: infra_cost_estimator</text>
+          <text x="450" y="240" font-size="8.5" fill="#64748b" text-anchor="middle">15ms • TCO model</text>
+
+          <!-- Branch to Finance Specialist -->
+          <line x1="510" y1="70" x2="600" y2="120" stroke="#94a3b8" stroke-width="1.5" />
+          <rect x="500" y="120" width="200" height="50" rx="6" fill="#fdf2f8" stroke="#fbcfe8" stroke-width="1.2" />
+          <text x="600" y="142" font-size="10.5" font-weight="700" fill="#831843" text-anchor="middle">FinancialAdvisorAgent</text>
+          <text x="600" y="156" font-size="9" fill="#db2777" text-anchor="middle">Sub-Agent Span • 48ms</text>
+
+          <!-- Finance Tools -->
+          <line x1="570" y1="170" x2="550" y2="210" stroke="#fbcfe8" stroke-width="1.2" />
+          <rect x="460" y="210" width="180" height="40" rx="5" fill="#ffffff" stroke="#fbcfe8" />
+          <text x="550" y="228" font-size="9.5" font-weight="600" fill="#831843" text-anchor="middle">tool: runway_calculator</text>
+          <text x="550" y="240" font-size="8.5" fill="#64748b" text-anchor="middle">14ms • Burn rate projection</text>
+
+          <line x1="630" y1="170" x2="690" y2="210" stroke="#fbcfe8" stroke-width="1.2" />
+          <rect x="650" y="210" width="170" height="40" rx="5" fill="#ffffff" stroke="#fbcfe8" />
+          <text x="735" y="228" font-size="9.5" font-weight="600" fill="#831843" text-anchor="middle">tool: unit_economics</text>
+          <text x="735" y="240" font-size="8.5" fill="#64748b" text-anchor="middle">16ms • CAC / LTV ratio</text>
+
+          <!-- Branch to Executive Consensus -->
+          <line x1="560" y1="70" x2="820" y2="120" stroke="#94a3b8" stroke-width="1.5" />
+          <rect x="720" y="120" width="200" height="50" rx="6" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.2" />
+          <text x="820" y="142" font-size="10.5" font-weight="700" fill="#065f46" text-anchor="middle">Executive Consensus</text>
+          <text x="820" y="156" font-size="9" fill="#059669" text-anchor="middle">chat gpt-4o • Synthesis</text>
+
+          <!-- Summary Box -->
+          <rect x="180" y="300" width="600" height="60" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
+          <text x="480" y="325" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle">Zero Configuration Required for Hierarchy</text>
+          <text x="480" y="343" font-size="9.5" fill="#64748b" text-anchor="middle">Spans automatically capture the calling parent span ID, constructing the full waterfall in DuckDB.</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- SECTION 06: Universal Trace Healer (UITH) -->
+    <section class="section-block" id="healer">
+      <div class="section-header">
+        <span class="section-idx">06</span>
+        <h2>Universal Trace Healer (UITH): Ingesting Chaotic Telemetry</h2>
+      </div>
+
+      <div class="executive-callout">
+        <div class="callout-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          The Problem NanoTrace Solves
+        </div>
+        <div class="callout-body">
+          Most real-world agent frameworks generate telemetry in non-standard, fragmented formats: LangGraph outputs deeply nested run trees, CrewAI outputs task result arrays, AutoGen outputs unstructured role-dialogue turns, and multithreaded tools drop their <code>parent_span_id</code>. The Universal Trace Healer normalizes all of these into standard OpenTelemetry GenAI spans automatically.
+        </div>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Universal Trace Healer (UITH) 4-Stage Normalization Pipeline
+          </div>
+        </div>
+
+        <svg class="visual-graphic" viewBox="0 0 960 260" xmlns="http://www.w3.org/2000/svg">
+          <!-- Input Stage: Dirty Payloads -->
+          <rect x="20" y="30" width="180" height="190" rx="8" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" />
+          <text x="110" y="55" font-size="11" font-weight="700" fill="#991b1b" text-anchor="middle">Chaotic Input Formats</text>
+          
+          <rect x="35" y="70" width="150" height="26" rx="4" fill="#ffffff" stroke="#f87171" />
+          <text x="110" y="87" font-size="9" font-weight="600" fill="#7f1d1d" text-anchor="middle">LangGraph Run Tree</text>
+
+          <rect x="35" y="105" width="150" height="26" rx="4" fill="#ffffff" stroke="#f87171" />
+          <text x="110" y="122" font-size="9" font-weight="600" fill="#7f1d1d" text-anchor="middle">CrewAI Task Dumps</text>
+
+          <rect x="35" y="140" width="150" height="26" rx="4" fill="#ffffff" stroke="#f87171" />
+          <text x="110" y="157" font-size="9" font-weight="600" fill="#7f1d1d" text-anchor="middle">AutoGen Message Dumps</text>
+
+          <rect x="35" y="175" width="150" height="26" rx="4" fill="#ffffff" stroke="#f87171" />
+          <text x="110" y="192" font-size="9" font-weight="600" fill="#7f1d1d" text-anchor="middle">Orphan Spans / Missing IDs</text>
+
+          <!-- Arrow -->
+          <line x1="200" y1="125" x2="230" y2="125" stroke="#dc2626" stroke-width="2" />
+
+          <!-- Healer Stage 1 -->
+          <rect x="230" y="30" width="160" height="190" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" />
+          <circle cx="310" cy="55" r="14" fill="#dbeafe" />
+          <text x="310" y="60" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">1</text>
+          <text x="310" y="85" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle">JSON Deconstructor</text>
+          <text x="245" y="115" font-size="9" fill="#475569">• Recursively unpacks nested trees</text>
+          <text x="245" y="135" font-size="9" fill="#475569">• Extracts child runs &amp; tasks</text>
+          <text x="245" y="155" font-size="9" fill="#475569">• Identifies root boundaries</text>
+
+          <!-- Arrow -->
+          <line x1="390" y1="125" x2="415" y2="125" stroke="#94a3b8" stroke-width="2" />
+
+          <!-- Healer Stage 2 -->
+          <rect x="415" y="30" width="160" height="190" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" />
+          <circle cx="495" cy="55" r="14" fill="#dbeafe" />
+          <text x="495" y="60" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">2</text>
+          <text x="495" y="85" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle">Fuzzy Token Normalizer</text>
+          <text x="430" y="115" font-size="9" fill="#475569">• Maps prompt_tokens</text>
+          <text x="430" y="135" font-size="9" fill="#475569">• Maps input_token_count</text>
+          <text x="430" y="155" font-size="9" fill="#475569">• Standardizes to OTel GenAI</text>
+
+          <!-- Arrow -->
+          <line x1="575" y1="125" x2="600" y2="125" stroke="#94a3b8" stroke-width="2" />
+
+          <!-- Healer Stage 3 -->
+          <rect x="600" y="30" width="160" height="190" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" />
+          <circle cx="680" cy="55" r="14" fill="#dbeafe" />
+          <text x="680" y="60" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">3</text>
+          <text x="680" y="85" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle">Temporal Grafter</text>
+          <text x="615" y="115" font-size="9" fill="#475569">• Detects orphan spans</text>
+          <text x="615" y="135" font-size="9" fill="#475569">• Matches start/end intervals</text>
+          <text x="615" y="155" font-size="9" fill="#475569">• Re-grafts tree hierarchy</text>
+
+          <!-- Arrow -->
+          <line x1="760" y1="125" x2="785" y2="125" stroke="#059669" stroke-width="2" />
+
+          <!-- Output Stage: Standardized Sink -->
+          <rect x="785" y="30" width="155" height="190" rx="8" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.5" />
+          <text x="862" y="55" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">Standardized Sink</text>
+
+          <rect x="795" y="75" width="135" height="40" rx="5" fill="#ffffff" stroke="#6ee7b7" />
+          <text x="862" y="93" font-size="9" font-weight="700" fill="#064e3b" text-anchor="middle">OTel GenAI v1.27</text>
+          <text x="862" y="105" font-size="8" fill="#059669" text-anchor="middle">Standard spans</text>
+
+          <rect x="795" y="125" width="135" height="40" rx="5" fill="#ffffff" stroke="#6ee7b7" />
+          <text x="862" y="143" font-size="9" font-weight="700" fill="#064e3b" text-anchor="middle">DuckDB Columnar</text>
+          <text x="862" y="155" font-size="8" fill="#059669" text-anchor="middle">Zero-loss storage</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- SECTION 07: Top 10 Frameworks Compatibility Matrix -->
+    <section class="section-block" id="frameworks">
+      <div class="section-header">
+        <span class="section-idx">07</span>
+        <h2>Top 10 Agentic Frameworks Interoperability Matrix</h2>
+      </div>
+
+      <div class="table-container">
+        <table class="exec-table">
+          <thead>
+            <tr>
+              <th>Framework</th>
+              <th>Showcase Use Case</th>
+              <th>Instrumentation Method</th>
+              <th>Telemetry Normalization Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. LangGraph</strong></td>
+              <td>StateGraph Financial Portfolio Rebalancer</td>
+              <td><code>@trace_agent</code> / LangChain Callback Sink</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native + Healer (Run Tree Unpack)</span></td>
+            </tr>
+            <tr>
+              <td><strong>2. CrewAI</strong></td>
+              <td>Multi-Agent Product Launch Team</td>
+              <td>Task Lifecycle Hooks + <code>@trace_agent</code></td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native + Healer (Task Array Unpack)</span></td>
+            </tr>
+            <tr>
+              <td><strong>3. Microsoft AutoGen</strong></td>
+              <td>Collaborative Code Review (User &amp; Assistant)</td>
+              <td>Message Interceptor Hook</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native + Healer (Message List Flatten)</span></td>
+            </tr>
+            <tr>
+              <td><strong>4. PydanticAI</strong></td>
+              <td>Validated Medical Triage Diagnostic Agent</td>
+              <td>Agent Lifecycle Wrapper + <code>@trace_agent</code></td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native (Strict Typed Schema)</span></td>
+            </tr>
+            <tr>
+              <td><strong>5. LlamaIndex Workflows</strong></td>
+              <td>Recursive Legal Contract Parser &amp; Router</td>
+              <td>Event Stream Observer + <code>@trace_tool</code></td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native OpenTelemetry Sink</span></td>
+            </tr>
+            <tr>
+              <td><strong>6. Microsoft Semantic Kernel</strong></td>
+              <td>Enterprise Plugin Orchestration Pipeline</td>
+              <td>Function Filter Middleware</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Standard OTel Bridge</span></td>
+            </tr>
+            <tr>
+              <td><strong>7. deepset Haystack</strong></td>
+              <td>Hybrid Retrieval Augmented Generation</td>
+              <td>Component Tracer Pipeline</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Standard OTel Bridge</span></td>
+            </tr>
+            <tr>
+              <td><strong>8. HuggingFace smolagents</strong></td>
+              <td>Code-Driven Agent Tool Execution</td>
+              <td>Step Callback Listener</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native Wrapper Support</span></td>
+            </tr>
+            <tr>
+              <td><strong>9. Stanford DSPy</strong></td>
+              <td>Self-Optimizing Teleprompter &amp; Few-Shot</td>
+              <td>Forward Pass Metric Wrapper</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Direct Span Injection</span></td>
+            </tr>
+            <tr>
+              <td><strong>10. OpenAI Swarm</strong></td>
+              <td>Handoff Customer Support Router</td>
+              <td>Handoff Execution Hooks</td>
+              <td><span style="color:var(--color-success); font-weight:700;">Native Multi-Agent Propagation</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 08: Trace-to-Eval Pipeline -->
+    <section class="section-block" id="evals">
+      <div class="section-header">
+        <span class="section-idx">08</span>
+        <h2>Trace-to-Eval Pipeline (DeepEval &amp; Ragas)</h2>
+      </div>
+
+      <p style="color:var(--text-secondary); margin-bottom: 18px; font-size:0.9rem;">
+        Observability traces collected by NanoTrace convert into synthetic evaluation test cases with a single function call, bridging production data directly into evaluation frameworks.
+      </p>
+
+      <div class="diagram-container">
+        <div class="diagram-header">
+          <div class="diagram-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            Trace-to-Eval Data Pipeline Flow
+          </div>
+        </div>
+
+        <svg class="visual-graphic" viewBox="0 0 960 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- DuckDB Storage -->
+          <rect x="40" y="40" width="200" height="140" rx="8" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" />
+          <text x="140" y="70" font-size="11.5" font-weight="700" fill="#78350f" text-anchor="middle">DuckDB Columnar Store</text>
+          <text x="140" y="90" font-size="9" fill="#b45309" text-anchor="middle">spans table (traces, timings)</text>
+          <text x="140" y="130" font-size="9.5" font-weight="600" fill="#92400e" font-family="monospace" text-anchor="middle">nanotrace.load_traces()</text>
+
+          <!-- Vectorized In-Memory Dataset -->
+          <line x1="240" y1="110" x2="310" y2="110" stroke="#d97706" stroke-width="2" />
+          <rect x="310" y="40" width="230" height="140" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" />
+          <text x="425" y="70" font-size="11.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">TraceDataset</text>
+          <text x="425" y="90" font-size="9" fill="#3b82f6" text-anchor="middle">Vectorized Python Trace Collection</text>
+          <text x="425" y="115" font-size="9" fill="#475569">• Groups spans by trace_id</text>
+          <text x="425" y="130" font-size="9" fill="#475569">• Resolves prompts &amp; completions</text>
+          <text x="425" y="145" font-size="9" fill="#475569">• Extracts retrieved tool contexts</text>
+
+          <!-- 3 Destination Paths -->
+          <line x1="540" y1="80" x2="620" y2="55" stroke="#2563eb" stroke-width="1.5" />
+          <line x1="540" y1="110" x2="620" y2="110" stroke="#2563eb" stroke-width="1.5" />
+          <line x1="540" y1="140" x2="620" y2="165" stroke="#2563eb" stroke-width="1.5" />
+
+          <!-- Target 1: DeepEval -->
+          <rect x="620" y="30" width="300" height="48" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="635" y="50" font-size="10.5" font-weight="700" fill="#1e3a8a">dataset.to_deepeval()</text>
+          <text x="635" y="65" font-size="8.5" fill="#64748b">Returns List[LLMTestCase] with input, output &amp; retrieval</text>
+
+          <!-- Target 2: Ragas -->
+          <rect x="620" y="86" width="300" height="48" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2" />
+          <text x="635" y="106" font-size="10.5" font-weight="700" fill="#1e3a8a">dataset.to_ragas()</text>
+          <text x="635" y="121" font-size="8.5" fill="#64748b">Returns EvaluationDataset for answer relevancy &amp; faithfulness</text>
+
+          <!-- Target 3: Local Heuristics -->
+          <rect x="620" y="142" width="300" height="48" rx="6" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.2" />
+          <text x="635" y="162" font-size="10.5" font-weight="700" fill="#065f46">dataset.run_heuristics()</text>
+          <text x="635" y="177" font-size="8.5" fill="#059669">Zero-cost local checks (token outliers, latency anomalies)</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- SECTION 09: Local-First to Cloud Economics -->
+    <section class="section-block" id="cloud-economics">
+      <div class="section-header">
+        <span class="section-idx">09</span>
+        <h2>Local-First vs. Cloud Economics &amp; Total Cost of Ownership (TCO)</h2>
+      </div>
+
+      <div class="executive-callout">
+        <div class="callout-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          The Meaning of "Local-First" in Enterprise Systems
+        </div>
+        <div class="callout-body">
+          In distributed systems design, "local-first" does <em>not</em> mean "laptop only." It means <strong>in-process and embedded</strong>. Just as SQLite runs inside production web applications, NanoTrace runs inside your Python process on developer machines, GitHub Actions CI runners, serverless cloud functions (Modal / AWS Lambda), or VPS instances.
+        </div>
+      </div>
+
+      <!-- TCO Comparison Table -->
+      <div class="table-container">
+        <table class="exec-table">
+          <thead>
+            <tr>
+              <th style="width:24%;">Observability Architecture</th>
+              <th style="width:24%;" class="col-highlight">NanoTrace (Local-First)</th>
+              <th style="width:26%;">Traditional SaaS (Langfuse / Datadog)</th>
+              <th style="width:26%;">Self-Hosted Docker Cluster</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Monthly Cost</strong></td>
+              <td class="col-highlight" style="color:var(--color-success); font-family:var(--font-mono);">$0.00 (Free forever)</td>
+              <td>$59 – $500+ / mo (Usage tiered)</td>
+              <td>$50 – $250 / mo (Server compute)</td>
+            </tr>
+            <tr>
+              <td><strong>Main-Thread Overhead</strong></td>
+              <td class="col-highlight" style="color:var(--color-success); font-family:var(--font-mono);">&lt; 15 µs in-memory enqueue</td>
+              <td>20 – 80 ms HTTP blocking</td>
+              <td>5 – 25 ms local network blocking</td>
+            </tr>
+            <tr>
+              <td><strong>Setup Time</strong></td>
+              <td class="col-highlight" style="color:var(--color-success);">30 seconds (<code>pip install</code>)</td>
+              <td>API keys + Cloud setup</td>
+              <td>2–4 hours (Docker + Postgres setup)</td>
+            </tr>
+            <tr>
+              <td><strong>Data Privacy &amp; Egress</strong></td>
+              <td class="col-highlight" style="color:var(--color-success);">100% inside your VPC/machine</td>
+              <td>All prompts sent to 3rd party</td>
+              <td>Kept within VPC cluster</td>
+            </tr>
+            <tr>
+              <td><strong>Memory Footprint</strong></td>
+              <td class="col-highlight" style="color:var(--color-success); font-family:var(--font-mono);">~15 MB RAM</td>
+              <td>0 MB (Cloud-hosted)</td>
+              <td>1.5 GB – 4 GB RAM</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3 Cloud Deployment Models -->
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:12px; color:var(--text-primary);">The 3 Cloud Hosting Models When Scaling NanoTrace</h3>
+      <div class="grid-3">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--accent-subtle); color:var(--accent-text);">Model 1: $5 Team VPS</span>
+          <h3>Centralized Fly.io / Hetzner</h3>
+          <p>Run NanoTrace UI and DuckDB on a $5/mo cloud VPS. Ideal for small engineering teams sharing trace history. Capacity: ~1.5M spans/mo.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Model 2: Serverless Lake</span>
+          <h3>Cloudflare R2 + Parquet ($0)</h3>
+          <p>Agents flush compressed Parquet files directly into Cloudflare R2 (10M free writes/mo, 0 egress fees). DuckDB queries directly over S3.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-warning-bg); color:var(--color-warning);">Model 3: Enterprise Hub</span>
+          <h3>VPC Air-Gapped Cluster</h3>
+          <p>Deploy NanoTrace inside high-security AWS/GCP Kubernetes clusters for defense, banking, and healthcare workloads requiring strict HIPAA compliance.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 10: CLI Reference & Diagnostics -->
+    <section class="section-block" id="cli-reference">
+      <div class="section-header">
+        <span class="section-idx">10</span>
+        <h2>Command-Line Interface (CLI) &amp; Operational Reference</h2>
+      </div>
+
+      <div class="table-container">
+        <table class="exec-table">
+          <thead>
+            <tr>
+              <th style="width:25%;">CLI Command</th>
+              <th style="width:40%;">Description</th>
+              <th style="width:35%;">Standard Arguments</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>nanotrace ui</code></td>
+              <td>Launch local interactive web dashboard</td>
+              <td><code>--port 7777 --host 127.0.0.1 --db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace demo</code></td>
+              <td>Run all 6 showcase agents + validator suite</td>
+              <td><code>--ui</code> (auto-open dashboard)</td>
+            </tr>
+            <tr>
+              <td><code>nanotrace stats</code></td>
+              <td>Print analytical summary of traces and token spend</td>
+              <td><code>--db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace query</code></td>
+              <td>Execute analytical DuckDB SQL query</td>
+              <td><code>"SELECT * FROM spans LIMIT 10"</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace export</code></td>
+              <td>Export traces to ZSTD compressed Parquet</td>
+              <td><code>--output traces.parquet</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace ingest</code></td>
+              <td>Self-heal and import external non-standard logs</td>
+              <td><code>&lt;file.json&gt; --db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace eval</code></td>
+              <td>Execute zero-cost heuristic evaluation suite</td>
+              <td><code>--db &lt;path&gt;</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Theme toggle
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('nanotrace_theme', next);
+    }
+
+    // Restore stored theme
+    (function() {
+      const stored = localStorage.getItem('nanotrace_theme');
+      if (stored) {
+        document.documentElement.setAttribute('data-theme', stored);
+      }
+    })();
+
+    // Copy code button helper
+    function copyCode(btn) {
+      const container = btn.closest('.code-container');
+      const code = container.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        const orig = btn.innerText;
+        btn.innerText = 'Copied!';
+        setTimeout(() => { btn.innerText = orig; }, 1800);
+      });
+    }
+
+    // Scroll spy for sidebar links
+    window.addEventListener('DOMContentLoaded', () => {
+      const sections = document.querySelectorAll('.section-block');
+      const navLinks = document.querySelectorAll('.nav-item');
+
+      window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(sec => {
+          const top = sec.offsetTop - 120;
+          if (window.pageYOffset >= top) {
+            current = sec.getAttribute('id');
+          }
+        });
+
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
