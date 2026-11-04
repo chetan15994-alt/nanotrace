@@ -12,11 +12,11 @@ let currentDb = ""; // empty means server default
 // Initialize on DOM ready
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
-  await loadDatabases();
-  loadDashboard();
   if (window.location.hash.toLowerCase().includes("guide")) {
     switchView("guide");
   }
+  await loadDatabases();
+  loadDashboard();
 });
 
 // ==========================================================================

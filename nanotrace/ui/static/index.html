@@ -249,51 +249,424 @@
             </a>
           </div>
 
-          <!-- 1. Skimmable Infographic Hero -->
-          <div class="infographic-hero-container" id="guide-hero">
-            <div class="hero-header-row">
-              <div class="hero-title-group">
-                <div class="hero-pill-badge">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                  <span>The DuckDB of AI Observability</span>
+          <!-- 1. The 3-Act Infographic Poster (ByteByteGo / SecurityZines Architectural Spec) -->
+          <div class="poster-container" id="guide-hero">
+            
+            <!-- POSTER HEADER -->
+            <header class="poster-header">
+              <div class="poster-title-area">
+                <div class="poster-pill-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  <span>NanoTrace Architectural Infographic Poster</span>
                 </div>
-                <h1>Ultra-Fast, Zero-Infra Agent Tracing</h1>
-                <p class="hero-tagline">
-                  Replace expensive cloud tracing platforms and 4GB Docker clusters with an embedded, microsecond OpenTelemetry engine that runs directly inside your Python process.
+                <h1 class="poster-main-title">AI Agent Observability &amp; <span>Evaluation Pipelines</span></h1>
+                <p class="poster-tagline">
+                  The consultant-grade perspective: In-process OpenTelemetry capture, self-healing telemetry, embedded lakehouse storage, and closed-loop quality assurance.
                 </p>
               </div>
-            </div>
 
-            <!-- Quick Contrast Infographic (Before vs After) -->
-            <div class="contrast-infographic-strip">
-              <div class="contrast-col contrast-bad">
-                <div class="contrast-col-header">
-                  <span class="contrast-badge-icon bad">✕</span>
-                  <span class="contrast-heading">Traditional Tracing SaaS</span>
+              <!-- Live OpenTelemetry Span Waterfall Mini-Graph -->
+              <div class="poster-waterfall-badge">
+                <div class="waterfall-header-row">
+                  <span>SPAN WATERFALL</span>
+                  <span>LATENCY: 42.1ms</span>
                 </div>
-                <ul class="contrast-points">
-                  <li><strong>Slow:</strong> 20–80 ms HTTP blocking per LLM call</li>
-                  <li><strong>Heavy:</strong> Docker, Postgres, Redis, ClickHouse</li>
-                  <li><strong>Costly:</strong> \$100s–\$1000s/mo per-token ingestion bills</li>
-                  <li><strong>Egress:</strong> Prompts &amp; tool data sent to third-party clouds</li>
-                </ul>
+                <div class="waterfall-span-row">
+                  <span style="width:72px; color:var(--accent-primary); font-weight:700;">agent_root</span>
+                  <div class="span-bar-wrap"><div class="span-bar root"></div></div>
+                  <span>42ms</span>
+                </div>
+                <div class="waterfall-span-row">
+                  <span style="width:72px; color:var(--color-success); padding-left:6px;">↳ planner</span>
+                  <div class="span-bar-wrap"><div class="span-bar plan"></div></div>
+                  <span>18ms</span>
+                </div>
+                <div class="waterfall-span-row">
+                  <span style="width:72px; color:#7c3aed; padding-left:12px;">↳ sql_tool</span>
+                  <div class="span-bar-wrap"><div class="span-bar tool"></div></div>
+                  <span>14ms</span>
+                </div>
+              </div>
+            </header>
+
+            <!-- ACT 1: AGENT EXECUTION LIFECYCLE -->
+            <section class="poster-act">
+              <div class="act-badge-header">
+                <div class="act-num-circle">1</div>
+                <div class="act-title-text">AI Agent Autonomous Execution Lifecycle</div>
+                <div class="act-subtitle-text">Where NanoTrace In-Process Tracing Hooks In</div>
               </div>
 
-              <div class="contrast-vs-divider">VS</div>
-
-              <div class="contrast-col contrast-good">
-                <div class="contrast-col-header">
-                  <span class="contrast-badge-icon good">✓</span>
-                  <span class="contrast-heading">The NanoTrace Model</span>
+              <div class="lifecycle-container">
+                <!-- Top Reflection Loop Bar -->
+                <div class="lifecycle-loop-header">
+                  <div class="loop-header-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    <span>Autonomous Multi-Turn Reflection &amp; State Loop</span>
+                  </div>
+                  <div class="loop-header-desc">
+                    Agent inspects tool execution outputs, recovers from exceptions, and loops back to ReAct planning
+                  </div>
+                  <div class="loop-header-arrow">
+                    <span>Synthesis</span>
+                    <span>➔</span>
+                    <span>ReAct Planner</span>
+                  </div>
                 </div>
-                <ul class="contrast-points">
-                  <li><strong>Ultra-Fast:</strong> &lt; 15 µs in-memory enqueue (3,750x faster)</li>
-                  <li><strong>Zero Infra:</strong> Single <code>pip install</code>, embedded DuckDB</li>
-                  <li><strong>$0.00 Cost:</strong> Free forever, zero cloud bills</li>
-                  <li><strong>100% Private:</strong> All data stored on your local disk / VPC</li>
-                </ul>
+
+                <!-- 3 Architecture Boundary Swimlanes with 7 Step Cards -->
+                <div class="swimlanes-wrapper">
+                  <!-- Swimlane 1: In-Process Context -->
+                  <div class="swimlane-col lane-local">
+                    <div class="swimlane-header">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg>
+                      <span>1. In-Process Context</span>
+                    </div>
+                    <div class="swimlane-steps">
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">01 • INPUT</span>
+                        <div class="step-title">User Prompt</div>
+                        <div class="step-desc">Natural language objective submitted by user.</div>
+                        <div class="step-code-pill">query: "Audit"</div>
+                      </div>
+                      <span class="step-connector-arrow">➔</span>
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">02 • ROOT</span>
+                        <div class="step-title">Agent Host</div>
+                        <div class="step-desc">Binds root trace_id &amp; session contextvars.</div>
+                        <div class="step-code-pill">@trace_agent</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Swimlane 2: Orchestration & Sub-Agents -->
+                  <div class="swimlane-col lane-reasoning">
+                    <div class="swimlane-header">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                      <span>2. Multi-Agent Reasoning DAG</span>
+                    </div>
+                    <div class="swimlane-steps">
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">03 • PLAN</span>
+                        <div class="step-title">ReAct Planner</div>
+                        <div class="step-desc">Decomposes goal into multi-step execution.</div>
+                        <div class="step-code-pill">decompose()</div>
+                      </div>
+                      <span class="step-connector-arrow">➔</span>
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">04 • DELEGATE</span>
+                        <div class="step-title">Sub-Agents</div>
+                        <div class="step-desc">Delegates tasks to domain specialists.</div>
+                        <div class="step-code-pill">spawn(SECFiler)</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Swimlane 3: External Models, Tools & Output -->
+                  <div class="swimlane-col lane-external">
+                    <div class="swimlane-header">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                      <span>3. Tools, LLM Providers &amp; Synthesis</span>
+                    </div>
+                    <div class="swimlane-steps">
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">05 • TOOLS</span>
+                        <div class="step-title">Tool Calls</div>
+                        <div class="step-desc">Executes SQL, vector searches, sandboxes.</div>
+                        <div class="step-code-pill">@trace_tool</div>
+                      </div>
+                      <span class="step-connector-arrow">➔</span>
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">06 • LLM</span>
+                        <div class="step-title">LLM Stream</div>
+                        <div class="step-desc">Token streaming, prompt token accounting.</div>
+                        <div class="step-code-pill">gpt-4o / claude</div>
+                      </div>
+                      <span class="step-connector-arrow">➔</span>
+                      <div class="lifecycle-step-card">
+                        <span class="step-badge">07 • OUTPUT</span>
+                        <div class="step-title">Synthesis</div>
+                        <div class="step-desc">Structured answer synthesized &amp; sealed.</div>
+                        <div class="step-code-pill">span.end(OK)</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="lifecycle-bottom-callout">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="16"></line></svg>
+                  <span><strong>The AI Observability Imperative:</strong> Traditional apps follow linear HTTP request/response paths. AI agents operate in non-deterministic cycles, invoke recursive sub-agents, and experience latent hallucinations. NanoTrace captures every step with <strong>&lt; 15 µs in-memory latency</strong> without stopping the agent.</span>
+                </div>
               </div>
-            </div>
+            </section>
+
+            <!-- ACT 2: CONTINUOUS PIPELINE (TRADITIONAL VS NANOTRACE) -->
+            <section class="poster-act">
+              <div class="act-badge-header">
+                <div class="act-num-circle">2</div>
+                <div class="act-title-text">Telemetry Ingestion: Cloud SaaS Bottleneck vs. NanoTrace In-Process Lakehouse</div>
+                <div class="act-subtitle-text">Microseconds vs. Network Latency &amp; Cloud Bills</div>
+              </div>
+
+              <div class="pipeline-split-box">
+                <!-- Traditional Cloud SaaS -->
+                <div class="pipeline-row bad">
+                  <div class="pipeline-row-header">
+                    <div class="pipeline-row-title bad">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                      <span>Traditional Cloud Tracing SaaS (The Blocking Cloud Penalty)</span>
+                    </div>
+                    <span class="pipeline-row-badge bad">20–80 ms Network Latency • $500–$2,000/mo Cloud Bills • Egress Risk</span>
+                  </div>
+
+                  <div class="subway-track-row">
+                    <div class="subway-station danger">
+                      <span class="station-name">Agent Step</span>
+                      <span class="station-sub">Event occurs</span>
+                    </div>
+                    <div class="subway-arrow">➔</div>
+                    <div class="subway-station danger">
+                      <span class="station-name">JSON Serialization</span>
+                      <span class="station-sub">Blocks main thread</span>
+                    </div>
+                    <div class="subway-arrow">➔</div>
+                    <div class="subway-station danger">
+                      <span class="station-name" style="color:var(--color-error); font-weight:800;">Blocking HTTP POST</span>
+                      <span class="station-sub">20–80ms cloud roundtrip</span>
+                    </div>
+                    <div class="subway-arrow">➔</div>
+                    <div class="subway-station danger">
+                      <span class="station-name">Cloud Cluster</span>
+                      <span class="station-sub">Kafka + ClickHouse + UI</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pipeline-divider-pill">VS • ARCHITECTURAL PARADIGM SHIFT</div>
+
+                <!-- NanoTrace In-Process Lakehouse -->
+                <div class="pipeline-row good">
+                  <div class="pipeline-row-header">
+                    <div class="pipeline-row-title good">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="9 12 11 14 15 10"></polyline></svg>
+                      <span>The NanoTrace Model (In-Process Ring Buffer &amp; Embedded DuckDB Lakehouse)</span>
+                    </div>
+                    <span class="pipeline-row-badge good">&lt; 15 µs Enqueue • $0.00 Cost • 100% In-Process • Zero Data Egress</span>
+                  </div>
+
+                  <div class="subway-track-row">
+                    <div class="subway-station highlight">
+                      <span class="station-name">@trace_agent Hook</span>
+                      <span class="station-sub">ContextVars binding</span>
+                    </div>
+                    <div class="subway-arrow">➔</div>
+                    <div class="subway-station highlight">
+                      <span class="station-name">Lock-Free Ring Buffer</span>
+                      <span class="station-sub">&lt; 15 µs enqueue (zero block)</span>
+                    </div>
+                    <div class="subway-arrow">➔</div>
+                    
+                    <!-- Parallel Healing Subway Track (fork and merge) -->
+                    <div class="subway-parallel-branch">
+                      <div class="branch-sub-station">
+                        <span style="font-weight:700;">Universal Trace Healer</span>
+                        <span class="tag">Fuzzy Schema</span>
+                      </div>
+                      <div class="branch-sub-station">
+                        <span style="font-weight:700;">Distributed Grafter</span>
+                        <span class="tag">Orphan Re-Link</span>
+                      </div>
+                      <div class="branch-sub-station">
+                        <span style="font-weight:700;">Soft Error Detector</span>
+                        <span class="tag">Exceptions</span>
+                      </div>
+                    </div>
+
+                    <div class="subway-arrow">➔</div>
+                    <div class="subway-station highlight">
+                      <span class="station-name">Embedded DuckDB</span>
+                      <span class="station-sub">Columnar Parquet Lakehouse</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ACT 3: THE INFINITY LOOP -->
+            <section class="poster-act">
+              <div class="act-badge-header">
+                <div class="act-num-circle">3</div>
+                <div class="act-title-text">Let's See In Detail: The Observability &amp; Evaluation Infinity Loop</div>
+                <div class="act-subtitle-text">Closed-Loop Quality: From Runtime Tracing to CI/CD Evaluation</div>
+              </div>
+
+              <div class="infinity-wrapper">
+                <div class="infinity-intro-bar">
+                  <span>Continuous cycle where production runtime telemetry directly powers offline regression prevention.</span>
+                  <span style="font-family:'JetBrains Mono', monospace; font-size:0.74rem; font-weight:700; color:var(--accent-primary-text);">RUNTIME TELEMETRY ⇄ EVALUATION QUALITY</span>
+                </div>
+
+                <div class="infinity-main-grid">
+                  <!-- LEFT LOBE: OBSERVE -->
+                  <div class="infinity-wing">
+                    <div class="wing-watermark">OBSERVE</div>
+                    <div class="wing-header">
+                      <span class="wing-badge observe">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <span>RUNTIME OBSERVABILITY</span>
+                      </span>
+                      <span style="font-family:'JetBrains Mono', monospace; font-size:0.68rem; color:var(--text-muted);">&lt; 15 µs / Telemetry Plane</span>
+                    </div>
+
+                    <div class="wing-track-flow">
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">1</div>
+                          <div class="node-label">Agent Application Code</div>
+                        </div>
+                        <div class="node-detail">@trace_agent / @trace_tool</div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">2</div>
+                          <div class="node-label">Async Context Engine</div>
+                        </div>
+                        <div class="node-detail">contextvars propagation</div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">3</div>
+                          <div class="node-label">Universal Trace Healer (UITH)</div>
+                        </div>
+                        <div class="node-detail">Schema normalization</div>
+                      </div>
+
+                      <!-- Alert Callout: Healer -->
+                      <div class="alert-callout-card healed">
+                        <div class="alert-header">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                          <span>Self-Healing Triggered: Schema Auto-Repaired</span>
+                        </div>
+                        <div class="alert-msg">
+                          Orphan span or malformed LangGraph JSON recovered in 0.18ms. 0% data loss.
+                        </div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">4</div>
+                          <div class="node-label">In-Memory Ring Buffer</div>
+                        </div>
+                        <div class="node-detail">50k spans lock-free</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CENTER CROSSOVER: LAKEHOUSE HUB -->
+                  <div class="infinity-hub">
+                    <div class="hub-transfer-arrow">
+                      <span>Stream Traces (50ms)</span>
+                      <span>➔</span>
+                    </div>
+
+                    <div class="hub-core-card">
+                      <div class="hub-core-icon">🦆</div>
+                      <div class="hub-core-title">DuckDB Lakehouse</div>
+                      <div class="hub-core-tech">nanotrace.duckdb</div>
+                      <p class="hub-core-desc">
+                        Embedded columnar storage with vector support. Query traces via SQL in &lt; 2ms or view in interactive UI (:7777).
+                      </p>
+                    </div>
+
+                    <div class="hub-transfer-arrow">
+                      <span>➔</span>
+                      <span>Export Gold Test Dataset</span>
+                    </div>
+                  </div>
+
+                  <!-- RIGHT LOBE: EVALUATE -->
+                  <div class="infinity-wing">
+                    <div class="wing-watermark">EVALUATE</div>
+                    <div class="wing-header">
+                      <span class="wing-badge evaluate">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        <span>CONTINUOUS EVALUATION</span>
+                      </span>
+                      <span style="font-family:'JetBrains Mono', monospace; font-size:0.68rem; color:var(--text-muted);">DeepEval &amp; Ragas Plane</span>
+                    </div>
+
+                    <div class="wing-track-flow">
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">1</div>
+                          <div class="node-label">TraceDataset Builder</div>
+                        </div>
+                        <div class="node-detail">Extracts inputs &amp; outputs</div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">2</div>
+                          <div class="node-label">Deterministic Heuristics</div>
+                        </div>
+                        <div class="node-detail">Latency p95 &amp; token budget</div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">3</div>
+                          <div class="node-label">LLM-as-a-Judge Scoring</div>
+                        </div>
+                        <div class="node-detail">DeepEval / Ragas metrics</div>
+                      </div>
+
+                      <!-- Alert Callout: Regression -->
+                      <div class="alert-callout-card regression">
+                        <div class="alert-header">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="16"></line></svg>
+                          <span>Regression Alert: Relevancy Score Dropped!</span>
+                        </div>
+                        <div class="alert-msg">
+                          Answer Relevancy fell to 0.61 (&lt; 0.70 threshold) on prompt v2.4. CI gate blocks deploy.
+                        </div>
+                      </div>
+
+                      <div class="infinity-node-item">
+                        <div class="node-item-left">
+                          <div class="node-num">4</div>
+                          <div class="node-label">CI/CD Quality Gate</div>
+                        </div>
+                        <div class="node-detail">Blocks broken releases</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sweeping Bottom Feedback Loop -->
+                <div class="infinity-feedback-bar">
+                  <div class="feedback-label-group">
+                    <span class="feedback-tag">FEEDBACK LOOP</span>
+                    <span class="feedback-text"><strong>Prompt &amp; Architecture Optimization:</strong> Failed evaluation traces are automatically ingested into gold evaluation suites to continuously refine agent system prompts, tool schemas, and routing logic.</span>
+                  </div>
+                  <svg class="feedback-arrow-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+              </div>
+            </section>
+
+            <!-- POSTER FOOTER -->
+            <footer class="poster-footer">
+              <div>
+                <strong>NanoTrace Architecture Working Group</strong> • Designed for AI Engineers &amp; Observability Architects
+              </div>
+              <div class="footer-badges">
+                <span class="footer-badge-pill">CNCF OpenTelemetry GenAI v1.27</span>
+                <span class="footer-badge-pill">Embedded DuckDB</span>
+                <span class="footer-badge-pill">Zero Egress</span>
+                <span class="footer-badge-pill">MIT Licensed</span>
+              </div>
+            </footer>
           </div>
 
           <!-- 2. The 3-Step Visual Architecture Flow (Infographic Diagram) -->

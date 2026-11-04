@@ -4,6 +4,63 @@ The DuckDB of AI Observability — An in-process, zero-overhead OpenTelemetry tr
 
 ---
 
+## 0. Architectural Perspective & Infographic: AI Agent Observability & Evaluation Pipelines
+
+To understand what NanoTrace is "in and around," consider how modern autonomous agent engineering departs from traditional software development. Traditional web services feature deterministic HTTP request/response flows. In contrast, **autonomous AI agents** loop continuously, decompose complex prompts into execution plans, delegate to specialized sub-agents, call external tools, stream tokens from non-deterministic LLMs, and recover from failures dynamically.
+
+NanoTrace provides a **3-Act closed-loop architecture** modeled after high-velocity continuous integration and delivery systems:
+
+```
+====================================================================================================
+                        AI AGENT OBSERVABILITY & EVALUATION PIPELINES
+====================================================================================================
+
+ACT 1: THE AI AGENT AUTONOMOUS EXECUTION LIFECYCLE
+----------------------------------------------------------------------------------------------------
+  [ ⟲ Autonomous Multi-Turn Reflection Loop: Re-plans when tools error or return partial results ]
+                                                  ▲                                       │
+  ┌───────────────────────┐   ┌───────────────────┴───┐   ┌───────────────────────────────┴────────┐
+  │ IN-PROCESS CONTEXT    │   │ REASONING DAG         │   │ TOOLS, LLMS & SYNTHESIS                │
+  │ [User Prompt]         │ ➔ │ [ReAct Planner]       │ ➔ │ [Tool Calls] (@trace_tool)             │
+  │       │               │   │       │               │   │       │                                │
+  │ [Agent Host]          │   │ [Sub-Agent Council]   │   │ [LLM Inference] (4o/Claude/Gemini)     │
+  │ (@trace_agent)        │   │ (Parallel delegation) │   │       │                                │
+  │                       │   │                       │   │ [Output Synthesis] (Seals Root Span)   │
+  └───────────────────────┘   └───────────────────────┘   └────────────────────────────────────────┘
+
+ACT 2: TELEMETRY INGESTION PIPELINE (TRADITIONAL SAAS VS. NANOTRACE)
+----------------------------------------------------------------------------------------------------
+  [TRADITIONAL SAAS]  Agent Turn ➔ Blocking JSON ➔ [⚠️ Blocking HTTP POST (20-80ms)] ➔ Cloud Cluster
+                      (High Latency • $500-$2,000/mo Ingestion Costs • Third-Party Data Egress Risk)
+                                                    VS
+  [NANOTRACE MODEL]   Agent Turn ➔ Lock-Free Ring Buffer (< 15 µs) ➔ Parallel Self-Healing:
+                                                                     ├─ Universal Trace Healer (UITH)
+                                                                     ├─ Distributed Grafter (Orphans)
+                                                                     └─ Soft Error Detector
+                                                                   ➔ Embedded DuckDB Lakehouse ($0.00)
+
+ACT 3: LET'S SEE IN DETAIL: THE OBSERVABILITY & EVALUATION INFINITY LOOP ( ∞ )
+----------------------------------------------------------------------------------------------------
+           OBSERVE (Runtime Tracing)               DUCKDB LAKEHOUSE              EVALUATE (Continuous Quality)
+     ┌───────────────────────────────────┐      ┌────────────────────┐     ┌───────────────────────────────────┐
+     │ 1. Agent Application Code         │ ────▶│  🦆 Embedded       │────▶│ 1. TraceDataset Builder           │
+     │ 2. Async ContextVars Engine       │      │     DuckDB         │     │ 2. Deterministic Heuristics       │
+     │ 3. Universal Trace Healer (UITH)  │      │  nanotrace.duckdb  │     │ 3. LLM-as-a-Judge (DeepEval/Ragas)│
+     │    [🚨 Self-Healed in 0.18ms!]    │      │  Parquet Storage   │     │    [🚨 Regression Detected <0.70!]│
+     │ 4. Lock-Free Ring Buffer (50k)    │      │  Dashboard (:7777) │     │ 4. CI/CD Quality Gate (Blocks PR) │
+     └───────────────────────────────────┘      └────────────────────┘     └───────────────────────────────────┘
+                       ▲                                                                     │
+                       └──────────── [ Prompt & Architecture Optimization Loop ] ────────────┘
+====================================================================================================
+```
+
+### The Three Acts Explained:
+1. **Act 1: The AI Agent Execution Lifecycle** — Captures where in-process tracing hooks into non-deterministic execution loops without interrupting agent thought cycles.
+2. **Act 2: The Core Mechanism / Pipeline** — Contrasts the legacy 20–80ms HTTP network blocking penalty and $100s–$1,000s cloud SaaS invoices against NanoTrace's `< 15 µs` in-memory ring buffer and embedded DuckDB storage.
+3. **Act 3: The Observability & Evaluation Infinity Loop ($\infty$)** — The operational closed loop. Production runtime traces captured on the **OBSERVE** wing continuously stream into the **DuckDB Lakehouse Hub**, where they are transformed into test fixtures on the **EVALUATE** wing. Regressions caught by DeepEval or Ragas immediately trip CI/CD gates, feeding prompt and topology refinements back into agent code.
+
+---
+
 ## 1. System Architecture & End-to-End Dataflow
 
 NanoTrace eliminates external telemetry infrastructure by embedding directly inside your Python application process. Traces are enqueued into an in-memory ring buffer in microseconds, flushed asynchronously by a daemon thread, and stored in an embedded DuckDB columnar file or native Parquet.
