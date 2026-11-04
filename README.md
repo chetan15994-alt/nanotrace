@@ -106,6 +106,32 @@ print(output)
 
 ---
 
+## 🩺 Universal Trace Healer: Ingest Chaotic Telemetry
+
+Have an existing agent built with **LangGraph**, **CrewAI**, **AutoGen**, or custom spaghetti loops with non-standard logs? NanoTrace includes a built-in **Universal Trace Healer (UITH)**:
+
+```python
+import nanotrace
+
+nanotrace.init()
+
+# Ingest messy LangGraph trees, CrewAI task outputs, AutoGen message arrays, or raw JSON
+nanotrace.ingest(haywire_payload)
+```
+
+Or ingest trace dumps directly via the CLI:
+```bash
+nanotrace ingest ./messy_traces.json
+```
+
+**NanoTrace automatically:**
+* **Fuzzy-reconciles tokens & models:** Maps fragmented vendor keys across OpenAI (`usage.prompt_tokens`), Anthropic (`usage.input_tokens`), Google Gemini (`usage_metadata.prompt_token_count`), and Bedrock (`inputTokenCount`).
+* **Heals broken trees (Temporal Grafting):** Automatically re-grafts orphaned child spans whose ContextVars were lost across async thread pools.
+* **Catches silent tool errors:** Scans return payloads for unhandled tracebacks, SQL errors, and 404s, even if caught in `try...except`.
+* **Estimates missing streaming tokens:** Ensures token counts and costs are never zero or null.
+
+---
+
 ## 🎯 1-Line Trace-to-Eval Bridge
 
 Convert production or test traces directly into evaluation test cases for **DeepEval** and **Ragas**:
