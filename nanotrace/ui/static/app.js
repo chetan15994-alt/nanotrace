@@ -441,3 +441,35 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// ==========================================================================
+// Poster Audience Perspective Toggle (Layman vs. Technical)
+// ==========================================================================
+
+function togglePosterMode(mode) {
+  const pLayman = document.getElementById("posterLayman");
+  const pTech = document.getElementById("posterTech");
+  const btnL = document.getElementById("toggleLaymanBtn");
+  const btnT = document.getElementById("toggleTechBtn");
+  if (!pLayman || !pTech) return;
+
+  if (mode === "layman") {
+    pLayman.style.display = "flex";
+    pTech.style.display = "none";
+    if (btnL && btnT) {
+      btnL.style.background = "var(--accent-primary)";
+      btnL.style.color = "#ffffff";
+      btnT.style.background = "transparent";
+      btnT.style.color = "var(--text-muted)";
+    }
+  } else {
+    pLayman.style.display = "none";
+    pTech.style.display = "flex";
+    if (btnL && btnT) {
+      btnT.style.background = "var(--accent-primary)";
+      btnT.style.color = "#ffffff";
+      btnL.style.background = "transparent";
+      btnL.style.color = "var(--text-muted)";
+    }
+  }
+}

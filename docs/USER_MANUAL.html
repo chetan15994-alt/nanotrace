@@ -719,6 +719,410 @@
       border-radius: 4px;
     }
 
+    /* -------------------------------------------------------------------------
+       LAYMAN INFOGRAPHIC POSTER STYLES (PLAIN ENGLISH SPEC)
+       ------------------------------------------------------------------------- */
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .story-step {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      transition: transform 0.15s ease;
+    }
+
+    .story-step:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .step-icon-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-emoji {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .step-seq-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      background: var(--bg-card-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    .step-headline {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .step-detail {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      line-height: 1.35;
+    }
+
+    .step-quote {
+      margin-top: auto;
+      font-size: 0.66rem;
+      font-style: italic;
+      color: var(--accent-primary);
+      background: var(--accent-subtle);
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
+      line-height: 1.25;
+    }
+
+    .act1-loop-callout {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      gap: 12px;
+    }
+
+    .loop-callout-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--accent-primary);
+      flex-shrink: 0;
+    }
+
+    .compare-container {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .compare-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 2px solid;
+    }
+
+    .compare-card.bad {
+      border-color: var(--color-error);
+      background: linear-gradient(180deg, var(--color-error-bg) 0%, var(--bg-card) 100%);
+    }
+
+    .compare-card.good {
+      border-color: var(--color-success);
+      background: linear-gradient(180deg, var(--color-success-bg) 0%, var(--bg-card) 100%);
+    }
+
+    .compare-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .compare-icon {
+      font-size: 1.8rem;
+    }
+
+    .compare-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .compare-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+    }
+
+    .compare-title.bad { color: var(--color-error); }
+    .compare-title.good { color: var(--color-success); }
+
+    .compare-tagline {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .compare-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+
+    .compare-bullets li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.35;
+    }
+
+    .bullet-badge {
+      font-weight: 800;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      margin-top: 1px;
+    }
+
+    .bullet-badge.bad { background: var(--color-error-bg); color: var(--color-error); }
+    .bullet-badge.good { background: var(--color-success-bg); color: var(--color-success); }
+
+    .vs-divider-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .vs-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      font-weight: 800;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .infinity-layman-box {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .infinity-layman-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr 1.15fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .layman-lobe {
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .lobe-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .lobe-title {
+      font-size: 0.86rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lobe-title.left { color: var(--accent-primary); }
+    .lobe-title.right { color: var(--color-purple); }
+
+    .lobe-role-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .lobe-role-pill.left { background: var(--accent-subtle); color: var(--accent-text); }
+    .lobe-role-pill.right { background: var(--color-purple-bg); color: var(--color-purple-text); }
+
+    .lobe-steps-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .layman-node {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.76rem;
+    }
+
+    .layman-node-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .layman-node-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .layman-node-name {
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .layman-node-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .layman-siren-card {
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border: 1.5px solid;
+    }
+
+    .layman-siren-card.healed {
+      background: var(--color-success-bg);
+      border-color: var(--color-success-border);
+      color: var(--color-success-text);
+    }
+
+    .layman-siren-card.warning {
+      background: var(--color-error-bg);
+      border-color: var(--color-error-border);
+      color: var(--color-error-text);
+    }
+
+    .siren-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      font-weight: 800;
+    }
+
+    .siren-body {
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    .layman-hub {
+      background: var(--bg-card);
+      border: 2px solid var(--accent-primary);
+      border-radius: 14px;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hub-duck-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+    }
+
+    .hub-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .hub-tag {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
+    }
+
+    .hub-desc {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .layman-feedback-banner {
+      background: var(--bg-card);
+      border: 2px dashed var(--accent-primary);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .feedback-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .feedback-pill {
+      font-size: 0.72rem;
+      font-weight: 800;
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--accent-border);
+      flex-shrink: 0;
+    }
+
+    .feedback-text {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
     .highlight-step .seq-time-pill {
       color: #065f46;
       background: #a7f3d0;
@@ -2147,6 +2551,410 @@
       border-radius: 4px;
     }
 
+    /* -------------------------------------------------------------------------
+       LAYMAN INFOGRAPHIC POSTER STYLES (PLAIN ENGLISH SPEC)
+       ------------------------------------------------------------------------- */
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .story-step {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      transition: transform 0.15s ease;
+    }
+
+    .story-step:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .step-icon-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-emoji {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .step-seq-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      background: var(--bg-card-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    .step-headline {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .step-detail {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      line-height: 1.35;
+    }
+
+    .step-quote {
+      margin-top: auto;
+      font-size: 0.66rem;
+      font-style: italic;
+      color: var(--accent-primary);
+      background: var(--accent-subtle);
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
+      line-height: 1.25;
+    }
+
+    .act1-loop-callout {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      gap: 12px;
+    }
+
+    .loop-callout-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--accent-primary);
+      flex-shrink: 0;
+    }
+
+    .compare-container {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .compare-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 2px solid;
+    }
+
+    .compare-card.bad {
+      border-color: var(--color-error);
+      background: linear-gradient(180deg, var(--color-error-bg) 0%, var(--bg-card) 100%);
+    }
+
+    .compare-card.good {
+      border-color: var(--color-success);
+      background: linear-gradient(180deg, var(--color-success-bg) 0%, var(--bg-card) 100%);
+    }
+
+    .compare-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .compare-icon {
+      font-size: 1.8rem;
+    }
+
+    .compare-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .compare-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+    }
+
+    .compare-title.bad { color: var(--color-error); }
+    .compare-title.good { color: var(--color-success); }
+
+    .compare-tagline {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .compare-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+
+    .compare-bullets li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.35;
+    }
+
+    .bullet-badge {
+      font-weight: 800;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      margin-top: 1px;
+    }
+
+    .bullet-badge.bad { background: var(--color-error-bg); color: var(--color-error); }
+    .bullet-badge.good { background: var(--color-success-bg); color: var(--color-success); }
+
+    .vs-divider-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .vs-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      font-weight: 800;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .infinity-layman-box {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .infinity-layman-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr 1.15fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .layman-lobe {
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .lobe-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .lobe-title {
+      font-size: 0.86rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lobe-title.left { color: var(--accent-primary); }
+    .lobe-title.right { color: var(--color-purple); }
+
+    .lobe-role-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .lobe-role-pill.left { background: var(--accent-subtle); color: var(--accent-text); }
+    .lobe-role-pill.right { background: var(--color-purple-bg); color: var(--color-purple-text); }
+
+    .lobe-steps-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .layman-node {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.76rem;
+    }
+
+    .layman-node-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .layman-node-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .layman-node-name {
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .layman-node-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .layman-siren-card {
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border: 1.5px solid;
+    }
+
+    .layman-siren-card.healed {
+      background: var(--color-success-bg);
+      border-color: var(--color-success-border);
+      color: var(--color-success-text);
+    }
+
+    .layman-siren-card.warning {
+      background: var(--color-error-bg);
+      border-color: var(--color-error-border);
+      color: var(--color-error-text);
+    }
+
+    .siren-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      font-weight: 800;
+    }
+
+    .siren-body {
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    .layman-hub {
+      background: var(--bg-card);
+      border: 2px solid var(--accent-primary);
+      border-radius: 14px;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hub-duck-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+    }
+
+    .hub-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .hub-tag {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
+    }
+
+    .hub-desc {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .layman-feedback-banner {
+      background: var(--bg-card);
+      border: 2px dashed var(--accent-primary);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .feedback-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .feedback-pill {
+      font-size: 0.72rem;
+      font-weight: 800;
+      background: var(--accent-subtle);
+      color: var(--accent-text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--accent-border);
+      flex-shrink: 0;
+    }
+
+    .feedback-text {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
     @media (max-width: 1024px) {
       .plane-grid-4, .dt-cards-grid, .tree-branches-grid, .grid-4 {
         grid-template-columns: repeat(2, 1fr);
@@ -2291,10 +3099,346 @@
     <section class="section-block" id="infographic">
       <div class="section-header">
         <span class="section-idx" style="background:var(--accent-subtle); color:var(--accent-text); border:1px solid var(--accent-border);">★</span>
-        <h2>Architectural Perspective: AI Agent Observability &amp; Evaluation Pipelines</h2>
+        <h2>Architectural Perspective &amp; Infographic: AI Agent Observability</h2>
       </div>
 
-      <div class="poster-container">
+      <!-- Perspective Switcher (Layman vs Technical) -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1.5px solid var(--border-color); border-radius:12px; padding:12px 18px; margin-bottom:20px; box-shadow:var(--shadow-sm);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.3rem;">🗺️</span>
+          <div>
+            <div style="font-weight:800; font-size:0.88rem; color:var(--text-primary);">Choose Your Perspective</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Switch between simple layman analogies and deep technical architecture</div>
+          </div>
+        </div>
+        <div style="display:inline-flex; background:var(--bg-card-subtle); border:1px solid var(--border-color); padding:3px; border-radius:8px; gap:4px;">
+          <button id="mToggleLaymanBtn" onclick="toggleManualPosterMode('layman')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:800; border:none; cursor:pointer; background:var(--accent-primary); color:#ffffff; transition:all 0.15s ease;">
+            👶 Plain English (Layman Guide)
+          </button>
+          <button id="mToggleTechBtn" onclick="toggleManualPosterMode('tech')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; border:none; cursor:pointer; background:transparent; color:var(--text-muted); transition:all 0.15s ease;">
+            ⚙️ Deep Technical (Architecture)
+          </button>
+        </div>
+      </div>
+
+      <!-- POSTER 1: LAYMAN INFOGRAPHIC (ACTIVE BY DEFAULT) -->
+      <div class="poster-container" id="mPosterLayman">
+        <!-- HEADER -->
+        <header class="poster-header">
+          <div class="poster-title-area">
+            <div class="poster-pill-label" style="background:var(--color-success-bg); color:var(--color-success-text); border-color:var(--color-success-border);">
+              <span>👶 NanoTrace in Plain English • No Jargon</span>
+            </div>
+            <h1 class="poster-main-title">How NanoTrace Works <span>(The Layman's Guide)</span></h1>
+            <p class="poster-tagline">
+              Think of your AI agent as an airplane on autopilot. NanoTrace is its <strong>Flight Black Box</strong>, <strong>First-Aid Kit</strong>, and <strong>Automated Teacher</strong>—keeping it fast, safe, and smart.
+            </p>
+          </div>
+
+          <div class="poster-waterfall-badge" style="min-width:240px; text-align:center;">
+            <span style="font-size:2rem; line-height:1;">✈️</span>
+            <span style="font-weight:800; font-size:0.82rem; color:var(--text-primary);">The Flight Black Box</span>
+            <span style="font-size:0.7rem; color:var(--text-muted);">Records silently inside without slowing the plane</span>
+          </div>
+        </header>
+
+        <!-- ACT 1: HOW AN AI AGENT WORKS -->
+        <section class="poster-act">
+          <div class="act-badge-header">
+            <div class="act-num-circle">1</div>
+            <div class="act-title-text">What Actually Happens When You Ask an AI Agent to Do a Job?</div>
+            <div class="act-subtitle-text">The Multi-Step Thinking Loop</div>
+          </div>
+
+          <div class="story-grid">
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">👤</span>
+                <span class="step-seq-pill">STEP 1</span>
+              </div>
+              <div class="step-headline">You Ask a Goal</div>
+              <div class="step-detail">You give the agent a real-world task.</div>
+              <div class="step-quote">"Book a Tokyo hotel under $200"</div>
+            </div>
+
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">🧠</span>
+                <span class="step-seq-pill">STEP 2</span>
+              </div>
+              <div class="step-headline">Boss Agent Plans</div>
+              <div class="step-detail">Breaks big task into sub-tasks and strategy.</div>
+              <div class="step-quote">"Find flights, check hotels, convert Yen"</div>
+            </div>
+
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">🤖</span>
+                <span class="step-seq-pill">STEP 3</span>
+              </div>
+              <div class="step-headline">Specialist Bots</div>
+              <div class="step-detail">Delegates to dedicated sub-agents in parallel.</div>
+              <div class="step-quote">"HotelBot &amp; CurrencyBot take over"</div>
+            </div>
+
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">🛠️</span>
+                <span class="step-seq-pill">STEP 4</span>
+              </div>
+              <div class="step-headline">Bots Use Tools</div>
+              <div class="step-detail">Runs Google search, queries databases, APIs.</div>
+              <div class="step-quote">"Searching TripAdvisor &amp; Booking.com"</div>
+            </div>
+
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">⚡</span>
+                <span class="step-seq-pill">STEP 5</span>
+              </div>
+              <div class="step-headline">AI Generates Text</div>
+              <div class="step-detail">LLM streams tokens and writes the response.</div>
+              <div class="step-quote">"Tokens stream from GPT-4o / Claude"</div>
+            </div>
+
+            <div class="story-step">
+              <div class="step-icon-bar">
+                <span class="step-emoji">🎉</span>
+                <span class="step-seq-pill">STEP 6</span>
+              </div>
+              <div class="step-headline">Final Answer</div>
+              <div class="step-detail">Delivers clean, verified booking to you.</div>
+              <div class="step-quote">"Here is your confirmed Tokyo hotel!"</div>
+            </div>
+          </div>
+
+          <div class="act1-loop-callout">
+            <div class="loop-callout-left">
+              <span>🔄 The "Oops, Hotel Sold Out!" Loop:</span>
+            </div>
+            <div>
+              Unlike regular apps that run once and stop, AI agents <strong>loop autonomously</strong>. If a tool fails or hotel is sold out, the agent reflects, tries option #2, and loops back. <strong>NanoTrace records every single turn of this loop!</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- ACT 2: OLD SLOW CLOUD VS NANOTRACE BLACK BOX -->
+        <section class="poster-act">
+          <div class="act-badge-header">
+            <div class="act-num-circle">2</div>
+            <div class="act-title-text">Why Old Tools Slow Down AI vs. How NanoTrace Does It for Free</div>
+            <div class="act-subtitle-text">Snail-Mail Cloud vs. In-Process Black Box</div>
+          </div>
+
+          <div class="compare-container">
+            <!-- Bad side -->
+            <div class="compare-card bad">
+              <div class="compare-header">
+                <span class="compare-icon">🐌</span>
+                <div class="compare-title-group">
+                  <span class="compare-title bad">The Old Snail-Mail Cloud Way</span>
+                  <span class="compare-tagline">Stopping at every turn to mail a letter to headquarters</span>
+                </div>
+              </div>
+              <ul class="compare-bullets">
+                <li>
+                  <span class="bullet-badge bad">✕</span>
+                  <span><strong>Sluggish &amp; Slow:</strong> Pauses the AI for 20 to 80 milliseconds on every thought to send a slow web request.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge bad">✕</span>
+                  <span><strong>Expensive Bills:</strong> Costs you $500 to $2,000 every month just to store logs in third-party clouds.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge bad">✕</span>
+                  <span><strong>Privacy Risks:</strong> Sends your sensitive company prompts, passwords, and user data across the open internet.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge bad">✕</span>
+                  <span><strong>Heavy Setup:</strong> Requires installing Docker, Redis, Postgres, and complex server clusters.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="vs-divider-box">
+              <div class="vs-circle">VS</div>
+            </div>
+
+            <!-- Good side -->
+            <div class="compare-card good">
+              <div class="compare-header">
+                <span class="compare-icon">⚡</span>
+                <div class="compare-title-group">
+                  <span class="compare-title good">The NanoTrace Model</span>
+                  <span class="compare-tagline">A high-speed flight black box running right inside your app</span>
+                </div>
+              </div>
+              <ul class="compare-bullets">
+                <li>
+                  <span class="bullet-badge good">✓</span>
+                  <span><strong>Microsecond Speed (&lt; 15 µs):</strong> 3,750x faster! Sits in high-speed RAM and never pauses or slows down your AI.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge good">✓</span>
+                  <span><strong>$0.00 Cost Forever:</strong> Single <code>pip install nanotrace</code>. No cloud servers, no surprise invoices.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge good">✓</span>
+                  <span><strong>100% Private &amp; Secure:</strong> All data stays locked on your own laptop or company machine. Zero data leaks.</span>
+                </li>
+                <li>
+                  <span class="bullet-badge good">✓</span>
+                  <span><strong>Self-Healing Doctor:</strong> If an agent writes scrambled or broken logs, NanoTrace fixes them automatically!</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ACT 3: THE LAYMAN INFINITY LOOP -->
+        <section class="poster-act">
+          <div class="act-badge-header">
+            <div class="act-num-circle">3</div>
+            <div class="act-title-text">The Complete Circle: From Watching to Getting Smarter</div>
+            <div class="act-subtitle-text">The Flight Recorder ⇄ The AI Teacher</div>
+          </div>
+
+          <div class="infinity-layman-box">
+            <div class="infinity-layman-grid">
+              <!-- LEFT WING: THE FLIGHT RECORDER & DOCTOR -->
+              <div class="layman-lobe">
+                <div class="lobe-top-bar">
+                  <span class="lobe-title left">
+                    <span>📹 The Flight Recorder</span>
+                  </span>
+                  <span class="lobe-role-pill left">WATCH &amp; PROTECT</span>
+                </div>
+
+                <div class="lobe-steps-flow">
+                  <div class="layman-node">
+                    <span class="layman-node-icon">🤖</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">1. AI Agent Running</span>
+                      <span class="layman-node-desc">Your agent is thinking and talking to users</span>
+                    </div>
+                  </div>
+
+                  <div class="layman-node">
+                    <span class="layman-node-icon">📸</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">2. Microsecond Snapshot</span>
+                      <span class="layman-node-desc">Records thoughts, tools clicked, cents spent</span>
+                    </div>
+                  </div>
+
+                  <div class="layman-node">
+                    <span class="layman-node-icon">🩺</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">3. Self-Healing First Aid</span>
+                      <span class="layman-node-desc">Repairs messy or corrupted logs automatically</span>
+                    </div>
+                  </div>
+
+                  <!-- Cute Siren Alert -->
+                  <div class="layman-siren-card healed">
+                    <div class="siren-header">
+                      <span>🚨 Doctor Alert: Scrambled Log Auto-Repaired!</span>
+                    </div>
+                    <div class="siren-body">
+                      An agent produced broken JSON. NanoTrace stitched it back together in 0.2ms with zero lost data!
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CENTER BRIDGE: THE SECRET DIARY -->
+              <div class="layman-hub">
+                <span style="font-size:0.72rem; font-weight:800; color:var(--accent-primary);">Saves Everything Silently ➔</span>
+                <div class="hub-duck-icon">🦆</div>
+                <div class="hub-title">The Secret Diary</div>
+                <div class="hub-tag">nanotrace.duckdb</div>
+                <p class="hub-desc">
+                  A single clean file on your laptop. Gives you a beautiful live dashboard at <code>localhost:7777</code> to view all your agent's thinking!
+                </p>
+                <span style="font-size:0.72rem; font-weight:800; color:var(--accent-primary);">➔ Creates Practice Tests</span>
+              </div>
+
+              <!-- RIGHT WING: THE AI TEACHER & REPORT CARD -->
+              <div class="layman-lobe">
+                <div class="lobe-top-bar">
+                  <span class="lobe-title right">
+                    <span>🧑‍🏫 The AI Teacher</span>
+                  </span>
+                  <span class="lobe-role-pill right">GRADE &amp; IMPROVE</span>
+                </div>
+
+                <div class="lobe-steps-flow">
+                  <div class="layman-node">
+                    <span class="layman-node-icon">📚</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">1. Practice Exam Maker</span>
+                      <span class="layman-node-desc">Turns yesterday's chats into test questions</span>
+                    </div>
+                  </div>
+
+                  <div class="layman-node">
+                    <span class="layman-node-icon">⏱️</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">2. Speed &amp; Budget Check</span>
+                      <span class="layman-node-desc">Did the agent get too slow or waste money?</span>
+                    </div>
+                  </div>
+
+                  <div class="layman-node">
+                    <span class="layman-node-icon">⚖️</span>
+                    <div class="layman-node-content">
+                      <span class="layman-node-name">3. The Grading Judge</span>
+                      <span class="layman-node-desc">Grades: Did the bot lie? Did it hallucinate?</span>
+                    </div>
+                  </div>
+
+                  <!-- Cute Siren Alert -->
+                  <div class="layman-siren-card warning">
+                    <div class="siren-header">
+                      <span>🚨 Teacher Alert: Bot Hallucinated!</span>
+                    </div>
+                    <div class="siren-body">
+                      The bot made up a fake hotel! Quality score dropped below 70%. Gatekeeper stops the release!
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Big Feedback Loop Ribbon -->
+            <div class="layman-feedback-banner">
+              <div class="feedback-left">
+                <span class="feedback-pill">THE CONTINUOUS IMPROVEMENT LOOP</span>
+                <span class="feedback-text">
+                  <strong>How Your Bot Gets Smarter Every Week:</strong> When the AI Teacher catches a mistake, you tweak the instructions. The next version is tested automatically, ensuring your agent gets smarter without ever breaking in front of customers!
+                </span>
+              </div>
+              <span style="font-size:1.6rem; color:var(--accent-primary);">↺</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="poster-footer">
+          <div>
+            <strong>NanoTrace</strong> • The Zero-Overhead, Privacy-First AI Observability Engine
+          </div>
+          <div class="footer-badges">
+            <span class="footer-badge-pill">👶 100% Layman Friendly</span>
+            <span class="footer-badge-pill">⚡ &lt; 15 µs Latency</span>
+            <span class="footer-badge-pill">🔒 100% Local Privacy</span>
+            <span class="footer-badge-pill">💰 $0.00 Free Forever</span>
+          </div>
+        </footer>
+      </div>
+
+      <!-- POSTER 2: TECHNICAL ARCHITECTURAL POSTER -->
+      <div class="poster-container" id="mPosterTech" style="display:none;">
         <!-- POSTER HEADER -->
         <header class="poster-header">
           <div class="poster-title-area">
@@ -3714,6 +4858,34 @@ response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
         });
       });
     });
+
+    function toggleManualPosterMode(mode) {
+      const pLayman = document.getElementById('mPosterLayman');
+      const pTech = document.getElementById('mPosterTech');
+      const btnL = document.getElementById('mToggleLaymanBtn');
+      const btnT = document.getElementById('mToggleTechBtn');
+      if (!pLayman || !pTech) return;
+
+      if (mode === 'layman') {
+        pLayman.style.display = 'flex';
+        pTech.style.display = 'none';
+        if (btnL && btnT) {
+          btnL.style.background = 'var(--accent-primary)';
+          btnL.style.color = '#ffffff';
+          btnT.style.background = 'transparent';
+          btnT.style.color = 'var(--text-muted)';
+        }
+      } else {
+        pLayman.style.display = 'none';
+        pTech.style.display = 'flex';
+        if (btnL && btnT) {
+          btnT.style.background = 'var(--accent-primary)';
+          btnT.style.color = '#ffffff';
+          btnL.style.background = 'transparent';
+          btnL.style.color = 'var(--text-muted)';
+        }
+      }
+    }
   </script>
 </body>
 </html>
