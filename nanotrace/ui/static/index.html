@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NanoTrace • AI Observability & Tracing</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <span class="brand-badge">⚡️ NanoTrace</span>
+        <span class="brand-tagline">OpenTelemetry & DuckDB Trace Engine</span>
+      </div>
+      <div class="nav-actions">
+        <span class="db-badge" id="dbIndicator">Local DuckDB Active</span>
+        <button class="btn btn-secondary" id="refreshBtn" onclick="loadDashboard()">↻ Refresh</button>
+      </div>
+    </header>
+
+    <!-- Top Metrics Row -->
+    <section class="metrics-grid" id="metricsGrid">
+      <div class="metric-card">
+        <div class="metric-label">Total Traces</div>
+        <div class="metric-value" id="valTotalTraces">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Spans</div>
+        <div class="metric-value" id="valTotalSpans">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Tokens</div>
+        <div class="metric-value" id="valTotalTokens">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Est. Cost (USD)</div>
+        <div class="metric-value" id="valTotalCost">$0.00</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">p50 Latency</div>
+        <div class="metric-value" id="valP50">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Error Rate</div>
+        <div class="metric-value" id="valErrorRate">0.0%</div>
+      </div>
+    </section>
+
+    <!-- Main Content Workspace -->
+    <main class="workspace">
+      <!-- Left Panel: Traces List -->
+      <aside class="traces-panel">
+        <div class="panel-header">
+          <h3>Recent Traces</h3>
+          <input type="text" id="traceSearch" placeholder="Filter by agent / trace ID..." oninput="filterTraces()">
+        </div>
+        <div class="trace-list" id="traceList">
+          <div class="loading-state">Loading traces...</div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: Trace Waterfall & Span Inspection -->
+      <section class="detail-panel">
+        <div class="detail-header" id="detailHeader">
+          <div class="detail-title-group">
+            <h2 id="activeTraceTitle">Select a trace to inspect</h2>
+            <span class="detail-subtitle" id="activeTraceSubtitle">Deep trace waterfall, token analytics & evaluation view</span>
+          </div>
+          <div class="detail-actions" id="detailActions" style="display: none;">
+            <button class="btn btn-primary" onclick="runTraceEvals()">⚡️ Run Heuristic Evals</button>
+          </div>
+        </div>
+
+        <!-- Evaluation Results Banner (Hidden by default) -->
+        <div class="eval-banner" id="evalBanner" style="display: none;"></div>
+
+        <!-- Waterfall Timeline -->
+        <div class="waterfall-section" id="waterfallSection">
+          <div class="empty-state">
+            <p>Select a trace from the left sidebar to visualize its OpenTelemetry waterfall, nested tool calls, and prompt payloads.</p>
+          </div>
+        </div>
+
+        <!-- Span Inspection Drawer -->
+        <div class="span-drawer" id="spanDrawer" style="display: none;">
+          <div class="drawer-header">
+            <h4 id="drawerSpanName">Span Details</h4>
+            <button class="close-btn" onclick="closeDrawer()">✕</button>
+          </div>
+          <div class="drawer-content" id="drawerContent"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

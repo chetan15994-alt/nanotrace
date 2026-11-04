@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nanotrace"
+version = "0.1.0"
+description = "⚡️ Ultra-low latency, zero-infra OpenTelemetry tracing & evaluation engine for AI agents and LLMs. The DuckDB of AI Observability."
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Chetan", email = "chetan15994-alt@users.noreply.github.com" },
+]
+requires-python = ">=3.9"
+keywords = [
+    "opentelemetry",
+    "tracing",
+    "observability",
+    "agents",
+    "llm",
+    "duckdb",
+    "deepeval",
+    "ragas",
+    "ai-governance",
+    "evaluations"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Logging",
+]
+
+dependencies = [
+    "duckdb>=0.10.0",
+    "pydantic>=2.0.0",
+    "opentelemetry-api>=1.20.0",
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+ui = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+]
+evals = [
+    "deepeval>=1.0.0",
+    "ragas>=0.1.0",
+]
+all = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "deepeval>=1.0.0",
+    "ragas>=0.1.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+nanotrace = "nanotrace.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/chetan15994-alt/nanotrace"
+Repository = "https://github.com/chetan15994-alt/nanotrace"
+Issues = "https://github.com/chetan15994-alt/nanotrace/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nanotrace"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
