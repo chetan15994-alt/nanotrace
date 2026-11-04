@@ -111,6 +111,22 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             return html_file.read_text(encoding="utf-8")
         return "<h1>NanoTrace UI static files not found</h1>"
 
+    @app.get("/guide", response_class=HTMLResponse)
+    @app.get("/architecture", response_class=HTMLResponse)
+    @app.get("/infographic", response_class=HTMLResponse)
+    def serve_guide():
+        html_file = STATIC_DIR / "index.html"
+        if html_file.exists():
+            content = html_file.read_text(encoding="utf-8")
+            # Automatically activate the Architecture & Guide view
+            return (
+                content.replace('class="view-container active" id="viewTraces"', 'class="view-container" id="viewTraces"')
+                .replace('class="view-container" id="viewGuide"', 'class="view-container active" id="viewGuide"')
+                .replace('class="nav-tab active" id="tabTracesBtn"', 'class="nav-tab" id="tabTracesBtn"')
+                .replace('class="nav-tab" id="tabGuideBtn"', 'class="nav-tab active" id="tabGuideBtn"')
+            )
+        return "<h1>NanoTrace UI static files not found</h1>"
+
     @app.get("/manual", response_class=HTMLResponse)
     def serve_manual():
         manual_path = Path(__file__).resolve().parent.parent.parent / "docs" / "USER_MANUAL.html"
