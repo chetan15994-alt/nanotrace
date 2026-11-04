@@ -1,6 +1,67 @@
+// ==========================================================================
+// NanoTrace Client-Side Application
+// Pure Vanilla JavaScript, zero external dependencies.
+// ==========================================================================
+
 let currentTraces = [];
 let activeTraceId = null;
 let activeTraceSpans = [];
+let selectedSpanId = null;
+
+// Initialize on DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  loadDashboard();
+});
+
+// ==========================================================================
+// Theme Management (Light & Dark with persistence)
+// ==========================================================================
+
+function initTheme() {
+  const savedTheme = localStorage.getItem("nanotrace_theme");
+  if (savedTheme) {
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  } else {
+    // Check system preference
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  const target = current === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", target);
+  localStorage.setItem("nanotrace_theme", target);
+}
+
+// ==========================================================================
+// View Navigation (Traces vs. Guide)
+// ==========================================================================
+
+function switchView(viewName) {
+  const tabTracesBtn = document.getElementById("tabTracesBtn");
+  const tabGuideBtn = document.getElementById("tabGuideBtn");
+  const viewTraces = document.getElementById("viewTraces");
+  const viewGuide = document.getElementById("viewGuide");
+
+  if (viewName === "traces") {
+    tabTracesBtn.classList.add("active");
+    tabGuideBtn.classList.remove("active");
+    viewTraces.classList.add("active");
+    viewGuide.classList.remove("active");
+  } else {
+    tabTracesBtn.classList.remove("active");
+    tabGuideBtn.classList.add("active");
+    viewTraces.classList.remove("active");
+    viewGuide.classList.add("active");
+  }
+}
+
+// ==========================================================================
+// Data Loading (Stats & Traces)
+// ==========================================================================
 
 async function loadDashboard() {
   await Promise.all([loadStats(), loadTraces()]);
@@ -17,7 +78,7 @@ async function loadStats() {
     document.getElementById("valP50").innerText = (data.p50_duration_ms || 0) + " ms";
     document.getElementById("valErrorRate").innerText = (data.error_rate_pct || 0) + "%";
   } catch (err) {
-    console.error("Failed to load stats", err);
+    console.error("Failed to load metrics", err);
   }
 }
 
@@ -28,33 +89,36 @@ async function loadTraces() {
     currentTraces = await res.json();
     renderTraceList(currentTraces);
   } catch (err) {
-    listEl.innerHTML = `<div class="empty-state">Failed to load traces from DuckDB.</div>`;
+    listEl.innerHTML = `<div class="empty-state">Unable to read traces from DuckDB.</div>`;
   }
 }
 
 function renderTraceList(traces) {
   const listEl = document.getElementById("traceList");
   if (!traces || traces.length === 0) {
-    listEl.innerHTML = `<div class="empty-state">No traces logged yet.<br>Run an agent to see spans!</div>`;
+    listEl.innerHTML = `<div class="empty-state">No traces logged yet.<br>Execute an agent script to see spans.</div>`;
     return;
   }
 
   listEl.innerHTML = traces.map(t => {
     const isError = t.status === "ERROR";
-    const statusClass = isError ? "status-error" : "status-ok";
+    const statusClass = isError ? "error" : "ok";
     const name = t.root_name || "Agent Run";
     const isActive = t.trace_id === activeTraceId ? "active" : "";
 
     return `
-      <div class="trace-item ${isActive}" onclick="selectTrace('${t.trace_id}')">
-        <div class="trace-item-header">
-          <span class="trace-root-name">${escapeHtml(name)}</span>
-          <span class="status-pill ${statusClass}">${t.status}</span>
+      <div class="trace-row ${isActive}" onclick="selectTrace('${t.trace_id}')">
+        <div class="trace-row-top">
+          <span class="trace-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+          <span class="trace-status-pill ${statusClass}">
+            <span class="status-dot ${statusClass}"></span>
+            ${t.status}
+          </span>
         </div>
-        <div class="trace-item-meta">
+        <div class="trace-row-meta">
           <span>${t.duration_ms} ms</span>
           <span>•</span>
-          <span>${t.total_tokens || 0} tokens</span>
+          <span>${Number(t.total_tokens || 0).toLocaleString()} tok</span>
           <span>•</span>
           <span>${t.total_spans} spans</span>
         </div>
@@ -72,12 +136,17 @@ function filterTraces() {
   renderTraceList(filtered);
 }
 
+// ==========================================================================
+// Trace Selection & Waterfall
+// ==========================================================================
+
 async function selectTrace(traceId) {
   activeTraceId = traceId;
+  selectedSpanId = null;
   renderTraceList(currentTraces);
 
-  document.getElementById("detailActions").style.display = "block";
-  document.getElementById("evalBanner").style.display = "none";
+  document.getElementById("traceActionButtons").style.display = "flex";
+  document.getElementById("evalCard").style.display = "none";
   closeDrawer();
 
   try {
@@ -86,7 +155,11 @@ async function selectTrace(traceId) {
 
     const rootSpan = activeTraceSpans.find(s => !s.parent_span_id) || activeTraceSpans[0];
     document.getElementById("activeTraceTitle").innerText = rootSpan ? rootSpan.name : "Trace: " + traceId.slice(0, 8);
-    document.getElementById("activeTraceSubtitle").innerText = `Trace ID: ${traceId} • ${activeTraceSpans.length} spans recorded`;
+    document.getElementById("activeTraceMeta").innerHTML = `
+      <span>TraceID: <code>${traceId}</code></span> • 
+      <span>${activeTraceSpans.length} spans</span> • 
+      <span>Total latency: ${rootSpan ? rootSpan.duration_ms : 0} ms</span>
+    `;
 
     renderWaterfall(activeTraceSpans);
   } catch (err) {
@@ -95,16 +168,16 @@ async function selectTrace(traceId) {
 }
 
 function renderWaterfall(spans) {
-  const container = document.getElementById("waterfallSection");
+  const canvas = document.getElementById("waterfallCanvas");
   if (!spans || spans.length === 0) {
-    container.innerHTML = `<div class="empty-state">No spans found for this trace.</div>`;
+    canvas.innerHTML = `<div class="empty-state">No spans found for this trace.</div>`;
     return;
   }
 
-  // Calculate start and end range for timeline
   const minStart = Math.min(...spans.map(s => Number(s.start_time_ns)));
   const maxEnd = Math.max(...spans.map(s => Number(s.end_time_ns)));
   const totalDurationNs = Math.max(1, maxEnd - minStart);
+  const totalDurationMs = totalDurationNs / 1_000_000;
 
   // Build tree depth map
   const depthMap = {};
@@ -119,117 +192,176 @@ function renderWaterfall(spans) {
     depthMap[s.span_id] = depth;
   });
 
-  container.innerHTML = spans.map(s => {
-    const startOffset = Math.max(0, (Number(s.start_time_ns) - minStart) / totalDurationNs * 100);
-    const widthPct = Math.max(0.8, (Number(s.end_time_ns) - Number(s.start_time_ns)) / totalDurationNs * 100);
-    const depth = depthMap[s.span_id] || 0;
-    const indentPx = depth * 18;
+  // Waterfall timeline ruler header
+  const rulerHtml = `
+    <div class="waterfall-header-ruler">
+      <div class="ruler-title-col">Span / Operation Hierarchy</div>
+      <div class="ruler-ticks-col">
+        <span>0 ms</span>
+        <span>${(totalDurationMs * 0.25).toFixed(1)} ms</span>
+        <span>${(totalDurationMs * 0.50).toFixed(1)} ms</span>
+        <span>${(totalDurationMs * 0.75).toFixed(1)} ms</span>
+        <span>${totalDurationMs.toFixed(1)} ms</span>
+      </div>
+      <div class="ruler-duration-col">Duration</div>
+    </div>
+  `;
 
-    let badgeClass = "badge-internal";
+  const rowsHtml = spans.map(s => {
+    const startOffset = Math.max(0, (Number(s.start_time_ns) - minStart) / totalDurationNs * 100);
+    const widthPct = Math.max(0.6, (Number(s.end_time_ns) - Number(s.start_time_ns)) / totalDurationNs * 100);
+    const depth = depthMap[s.span_id] || 0;
+    const indentPx = depth * 16;
+
+    let badgeClass = "kind-internal";
     let badgeLabel = s.kind;
     if (s.gen_ai_operation === "agent_run") {
-      badgeClass = "badge-agent";
+      badgeClass = "kind-agent";
       badgeLabel = "agent";
     } else if (s.gen_ai_operation === "chat") {
-      badgeClass = "badge-chat";
+      badgeClass = "kind-chat";
       badgeLabel = s.gen_ai_request_model || "llm";
     } else if (s.gen_ai_operation === "execute_tool" || s.gen_ai_tool_name) {
-      badgeClass = "badge-tool";
+      badgeClass = "kind-tool";
       badgeLabel = "tool";
     }
 
     const isError = s.status === "ERROR";
-    const barClass = isError ? "duration-bar error-bar" : "duration-bar";
+    const barClass = isError ? "span-bar error" : "span-bar";
+    const isSelected = s.span_id === selectedSpanId ? "selected" : "";
 
     return `
-      <div class="waterfall-row" onclick="openDrawer('${s.span_id}')">
-        <div class="span-info-col" style="padding-left: ${indentPx}px">
-          <span class="span-badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
-          <span class="span-name-label" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
+      <div class="span-row ${isSelected}" onclick="openDrawer('${s.span_id}')">
+        <div class="span-name-col" style="padding-left: ${indentPx}px">
+          <span class="kind-badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
+          <span class="span-text" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
         </div>
-        <div class="span-bar-col">
+        <div class="span-timeline-track">
           <div class="${barClass}" style="left: ${startOffset}%; width: ${widthPct}%;"></div>
         </div>
-        <div class="span-duration-label">${s.duration_ms} ms</div>
+        <div class="span-dur-col">${s.duration_ms} ms</div>
       </div>
     `;
   }).join("");
+
+  canvas.innerHTML = rulerHtml + rowsHtml;
 }
 
+// ==========================================================================
+// Span Inspection Drawer
+// ==========================================================================
+
 function openDrawer(spanId) {
+  selectedSpanId = spanId;
+  renderWaterfall(activeTraceSpans);
+
   const span = activeTraceSpans.find(s => s.span_id === spanId);
   if (!span) return;
 
   const drawer = document.getElementById("spanDrawer");
-  const content = document.getElementById("drawerContent");
   document.getElementById("drawerSpanName").innerText = span.name;
+  document.getElementById("drawerSpanKind").innerText = span.gen_ai_operation || span.kind;
 
-  let promptDisplay = span.prompt_payload;
-  try { promptDisplay = JSON.stringify(JSON.parse(span.prompt_payload), null, 2); } catch (_) {}
-
-  let compDisplay = span.completion_payload;
-  try { compDisplay = JSON.stringify(JSON.parse(span.completion_payload), null, 2); } catch (_) {}
-
-  let attrsDisplay = span.attributes_json;
-  try { attrsDisplay = JSON.stringify(JSON.parse(span.attributes_json), null, 2); } catch (_) {}
-
-  content.innerHTML = `
-    <div class="drawer-section">
-      <div class="drawer-section-title">OpenTelemetry Identifiers</div>
-      <div class="code-block">Trace ID: ${span.trace_id}\nSpan ID:  ${span.span_id}\nParent:   ${span.parent_span_id || "None (Root)"}\nStatus:   ${span.status}</div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-title">Metrics & Tokens</div>
-      <div class="code-block">Duration:     ${span.duration_ms} ms\nInput Tokens: ${span.gen_ai_input_tokens}\nOutput Tokens:${span.gen_ai_output_tokens}\nTotal Tokens: ${span.gen_ai_total_tokens}\nEst. Cost:    $${Number(span.gen_ai_cost_usd || 0).toFixed(6)}</div>
-    </div>
-
-    ${promptDisplay && promptDisplay !== '""' ? `
-    <div class="drawer-section">
-      <div class="drawer-section-title">Input / Prompt Payload</div>
-      <div class="code-block">${escapeHtml(promptDisplay)}</div>
-    </div>` : ''}
-
-    ${compDisplay && compDisplay !== '""' ? `
-    <div class="drawer-section">
-      <div class="drawer-section-title">Output / Completion Payload</div>
-      <div class="code-block">${escapeHtml(compDisplay)}</div>
-    </div>` : ''}
-
-    <div class="drawer-section">
-      <div class="drawer-section-title">All CNCF GenAI Attributes</div>
-      <div class="code-block">${escapeHtml(attrsDisplay)}</div>
-    </div>
+  // Overview tab
+  const kvGrid = document.getElementById("drawerOverviewKv");
+  kvGrid.innerHTML = `
+    <div class="kv-item"><span class="kv-key">Trace ID</span><span class="kv-val">${span.trace_id}</span></div>
+    <div class="kv-item"><span class="kv-key">Span ID</span><span class="kv-val">${span.span_id}</span></div>
+    <div class="kv-item"><span class="kv-key">Parent Span</span><span class="kv-val">${span.parent_span_id || "Root (None)"}</span></div>
+    <div class="kv-item"><span class="kv-key">Operation</span><span class="kv-val">${span.gen_ai_operation || span.kind}</span></div>
+    <div class="kv-item"><span class="kv-key">Provider / System</span><span class="kv-val">${span.gen_ai_system || "—"}</span></div>
+    <div class="kv-item"><span class="kv-key">Requested Model</span><span class="kv-val">${span.gen_ai_request_model || "—"}</span></div>
+    <div class="kv-item"><span class="kv-key">Duration</span><span class="kv-val">${span.duration_ms} ms</span></div>
+    <div class="kv-item"><span class="kv-key">Tokens (In / Out / Total)</span><span class="kv-val">${span.gen_ai_input_tokens} / ${span.gen_ai_output_tokens} / ${span.gen_ai_total_tokens}</span></div>
+    <div class="kv-item"><span class="kv-key">Est. Cost (USD)</span><span class="kv-val">$${Number(span.gen_ai_cost_usd || 0).toFixed(6)}</span></div>
+    <div class="kv-item"><span class="kv-key">Status</span><span class="kv-val" style="color: ${span.status === 'ERROR' ? 'var(--color-error)' : 'var(--color-success)'}">${span.status}</span></div>
   `;
+
+  // Payloads tab
+  let promptText = span.prompt_payload;
+  try { promptText = JSON.stringify(JSON.parse(span.prompt_payload), null, 2); } catch (_) {}
+  document.getElementById("drawerPrompt").innerText = promptText || "(No input recorded)";
+
+  let compText = span.completion_payload;
+  try { compText = JSON.stringify(JSON.parse(span.completion_payload), null, 2); } catch (_) {}
+  document.getElementById("drawerCompletion").innerText = compText || "(No completion recorded)";
+
+  // OTel JSON tab
+  let attrsText = span.attributes_json;
+  try { attrsText = JSON.stringify(JSON.parse(span.attributes_json), null, 2); } catch (_) {}
+  document.getElementById("drawerOtelJson").innerText = attrsText || "{}";
 
   drawer.style.display = "flex";
 }
 
 function closeDrawer() {
   document.getElementById("spanDrawer").style.display = "none";
+  selectedSpanId = null;
+  if (activeTraceSpans.length > 0) {
+    renderWaterfall(activeTraceSpans);
+  }
 }
+
+function switchDrawerTab(tabName) {
+  document.querySelectorAll(".drawer-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".drawer-tab-content").forEach(c => c.classList.remove("active"));
+
+  if (tabName === "overview") {
+    document.querySelectorAll(".drawer-tab")[0].classList.add("active");
+    document.getElementById("dtab-overview").classList.add("active");
+  } else if (tabName === "payloads") {
+    document.querySelectorAll(".drawer-tab")[1].classList.add("active");
+    document.getElementById("dtab-payloads").classList.add("active");
+  } else if (tabName === "otel") {
+    document.querySelectorAll(".drawer-tab")[2].classList.add("active");
+    document.getElementById("dtab-otel").classList.add("active");
+  }
+}
+
+// ==========================================================================
+// Local Heuristic Evaluations
+// ==========================================================================
 
 async function runTraceEvals() {
   if (!activeTraceId) return;
-  const banner = document.getElementById("evalBanner");
-  banner.innerHTML = `<span style="color:#c7d2fe;">Running local heuristic evaluations...</span>`;
-  banner.style.display = "flex";
+  const card = document.getElementById("evalCard");
+  card.innerHTML = `<span style="font-size:0.8rem; color:var(--text-muted);">Running diagnostic heuristics on trace...</span>`;
+  card.style.display = "flex";
 
   try {
     const res = await fetch(`/api/evals/${activeTraceId}`);
     const results = await res.json();
 
-    banner.innerHTML = results.map(r => `
-      <div class="eval-metric">
-        <span class="eval-metric-name">${r.metric_name}</span>
-        <span class="eval-metric-score" style="color: ${r.passed ? '#10b981' : '#ef4444'}">
-          ${(r.score * 100).toFixed(0)}% ${r.passed ? '✓' : '✗'}
-        </span>
-      </div>
-    `).join("");
+    card.innerHTML = results.map(r => {
+      const color = r.passed ? "var(--color-success)" : "var(--color-error)";
+      const icon = r.passed ? "✓ Passed" : "✕ Flagged";
+      const readableName = r.metric_name.replace(/_/g, " ");
+
+      return `
+        <div class="eval-col">
+          <span class="eval-col-title">${escapeHtml(readableName)}</span>
+          <span class="eval-col-val" style="color: ${color};">
+            ${(r.score * 100).toFixed(0)}% <span style="font-size:0.75rem; font-weight:normal;">(${icon})</span>
+          </span>
+        </div>
+      `;
+    }).join("");
   } catch (err) {
-    banner.innerHTML = `<span style="color:#ef4444;">Evaluation failed.</span>`;
+    card.innerHTML = `<span style="color: var(--color-error); font-size:0.8rem;">Evaluation failed.</span>`;
   }
+}
+
+// ==========================================================================
+// Utilities
+// ==========================================================================
+
+function copyTraceId() {
+  if (!activeTraceId) return;
+  navigator.clipboard.writeText(activeTraceId);
+  const btn = document.getElementById("copyIdBtn");
+  const orig = btn.innerHTML;
+  btn.innerHTML = `<span>Copied!</span>`;
+  setTimeout(() => { btn.innerHTML = orig; }, 1500);
 }
 
 function escapeHtml(str) {
@@ -241,5 +373,3 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
-document.addEventListener("DOMContentLoaded", loadDashboard);

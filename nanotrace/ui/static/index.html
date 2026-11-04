@@ -1,99 +1,409 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NanoTrace • AI Observability & Tracing</title>
+  <title>NanoTrace • AI Agent Tracing & Observability</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-container">
-    <!-- Navbar -->
-    <header class="navbar">
-      <div class="nav-brand">
-        <span class="brand-badge">⚡️ NanoTrace</span>
-        <span class="brand-tagline">OpenTelemetry & DuckDB Trace Engine</span>
+  <div class="layout-container">
+    <!-- Navigation Bar -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <span class="brand-name">NanoTrace</span>
+          <span class="version-tag">v0.1.0</span>
+        </div>
+        <div class="engine-badge">
+          <span class="pulse-dot"></span>
+          <span>DuckDB Engine Active</span>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+          <button class="nav-tab active" id="tabTracesBtn" onclick="switchView('traces')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span>Live Traces & Waterfall</span>
+          </button>
+          <button class="nav-tab" id="tabGuideBtn" onclick="switchView('guide')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            <span>Architecture & Guide</span>
+          </button>
+        </nav>
       </div>
-      <div class="nav-actions">
-        <span class="db-badge" id="dbIndicator">Local DuckDB Active</span>
-        <button class="btn btn-secondary" id="refreshBtn" onclick="loadDashboard()">↻ Refresh</button>
+
+      <div class="nav-right">
+        <!-- Theme Toggle -->
+        <button class="icon-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
+          <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <!-- Refresh Button -->
+        <button class="nav-action-btn" onclick="loadDashboard()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <span>Refresh</span>
+        </button>
+
+        <!-- GitHub Repo CTA -->
+        <a href="https://github.com/chetan15994-alt/nanotrace" target="_blank" rel="noopener noreferrer" class="github-link-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
       </div>
     </header>
 
-    <!-- Top Metrics Row -->
-    <section class="metrics-grid" id="metricsGrid">
-      <div class="metric-card">
-        <div class="metric-label">Total Traces</div>
-        <div class="metric-value" id="valTotalTraces">-</div>
+    <!-- Metrics Summary Bar -->
+    <section class="metrics-bar" id="metricsBar">
+      <div class="metric-cell">
+        <span class="cell-label">Total Traces</span>
+        <span class="cell-value" id="valTotalTraces">-</span>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Total Spans</div>
-        <div class="metric-value" id="valTotalSpans">-</div>
+      <div class="metric-cell">
+        <span class="cell-label">Total Spans</span>
+        <span class="cell-value" id="valTotalSpans">-</span>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Total Tokens</div>
-        <div class="metric-value" id="valTotalTokens">-</div>
+      <div class="metric-cell">
+        <span class="cell-label">Token Consumption</span>
+        <span class="cell-value" id="valTotalTokens">-</span>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Est. Cost (USD)</div>
-        <div class="metric-value" id="valTotalCost">$0.00</div>
+      <div class="metric-cell">
+        <span class="cell-label">Est. Spend</span>
+        <span class="cell-value" id="valTotalCost">$0.00</span>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">p50 Latency</div>
-        <div class="metric-value" id="valP50">-</div>
+      <div class="metric-cell">
+        <span class="cell-label">Median Latency (p50)</span>
+        <span class="cell-value" id="valP50">-</span>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Error Rate</div>
-        <div class="metric-value" id="valErrorRate">0.0%</div>
+      <div class="metric-cell">
+        <span class="cell-label">Error Rate</span>
+        <span class="cell-value" id="valErrorRate">0.0%</span>
       </div>
     </section>
 
-    <!-- Main Content Workspace -->
-    <main class="workspace">
-      <!-- Left Panel: Traces List -->
-      <aside class="traces-panel">
-        <div class="panel-header">
-          <h3>Recent Traces</h3>
-          <input type="text" id="traceSearch" placeholder="Filter by agent / trace ID..." oninput="filterTraces()">
+    <!-- VIEW 1: Live Traces & Waterfall -->
+    <main class="view-container active" id="viewTraces">
+      <!-- Left Sidebar: Traces Explorer -->
+      <aside class="sidebar-traces">
+        <div class="sidebar-header">
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="traceSearch" placeholder="Filter by agent or trace ID..." oninput="filterTraces()">
+          </div>
         </div>
-        <div class="trace-list" id="traceList">
-          <div class="loading-state">Loading traces...</div>
+        <div class="trace-feed" id="traceList">
+          <div class="empty-state">Loading recorded traces...</div>
         </div>
       </aside>
 
-      <!-- Right Panel: Trace Waterfall & Span Inspection -->
-      <section class="detail-panel">
-        <div class="detail-header" id="detailHeader">
-          <div class="detail-title-group">
+      <!-- Center & Right: Trace Detail & Waterfall Timeline -->
+      <section class="trace-workspace">
+        <div class="workspace-header">
+          <div class="workspace-title-area">
             <h2 id="activeTraceTitle">Select a trace to inspect</h2>
-            <span class="detail-subtitle" id="activeTraceSubtitle">Deep trace waterfall, token analytics & evaluation view</span>
+            <div class="trace-meta-tags" id="activeTraceMeta">
+              <span>Click on any trace in the sidebar to visualize its timeline and execution tree.</span>
+            </div>
           </div>
-          <div class="detail-actions" id="detailActions" style="display: none;">
-            <button class="btn btn-primary" onclick="runTraceEvals()">⚡️ Run Heuristic Evals</button>
+          <div class="workspace-actions" id="traceActionButtons" style="display: none;">
+            <button class="btn btn-eval" onclick="runTraceEvals()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <span>Run Local Evals</span>
+            </button>
+            <button class="btn btn-secondary" onclick="copyTraceId()" id="copyIdBtn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copy TraceID</span>
+            </button>
           </div>
         </div>
 
-        <!-- Evaluation Results Banner (Hidden by default) -->
-        <div class="eval-banner" id="evalBanner" style="display: none;"></div>
+        <!-- Evaluation Results Banner -->
+        <div class="eval-card" id="evalCard" style="display: none;"></div>
 
-        <!-- Waterfall Timeline -->
-        <div class="waterfall-section" id="waterfallSection">
-          <div class="empty-state">
-            <p>Select a trace from the left sidebar to visualize its OpenTelemetry waterfall, nested tool calls, and prompt payloads.</p>
+        <!-- Waterfall Timeline Chart -->
+        <div class="waterfall-canvas" id="waterfallCanvas">
+          <div class="placeholder-hero">
+            <div class="placeholder-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </div>
+            <h3>No trace selected</h3>
+            <p>Pick an execution run from the left to inspect root agents, nested tool calls, prompt messages, and latencies.</p>
           </div>
         </div>
 
         <!-- Span Inspection Drawer -->
         <div class="span-drawer" id="spanDrawer" style="display: none;">
-          <div class="drawer-header">
-            <h4 id="drawerSpanName">Span Details</h4>
-            <button class="close-btn" onclick="closeDrawer()">✕</button>
+          <div class="drawer-top">
+            <div class="drawer-title-group">
+              <span class="drawer-kind-badge" id="drawerSpanKind">SPAN</span>
+              <h4 id="drawerSpanName">Span Inspection</h4>
+            </div>
+            <button class="btn-close" onclick="closeDrawer()">✕</button>
           </div>
-          <div class="drawer-content" id="drawerContent"></div>
+
+          <div class="drawer-body">
+            <!-- Drawer Tabs -->
+            <div class="drawer-tabs">
+              <button class="drawer-tab active" onclick="switchDrawerTab('overview')">Overview</button>
+              <button class="drawer-tab" onclick="switchDrawerTab('payloads')">Input & Output</button>
+              <button class="drawer-tab" onclick="switchDrawerTab('otel')">OTel Attributes</button>
+            </div>
+
+            <!-- Tab 1: Overview -->
+            <div class="drawer-tab-content active" id="dtab-overview">
+              <div class="kv-grid" id="drawerOverviewKv"></div>
+            </div>
+
+            <!-- Tab 2: Payloads -->
+            <div class="drawer-tab-content" id="dtab-payloads">
+              <div class="code-panel">
+                <div class="code-panel-header">Input Prompt / Arguments</div>
+                <pre class="code-content" id="drawerPrompt"></pre>
+              </div>
+              <div class="code-panel" style="margin-top: 14px;">
+                <div class="code-panel-header">Completion / Output</div>
+                <pre class="code-content" id="drawerCompletion"></pre>
+              </div>
+            </div>
+
+            <!-- Tab 3: OTel Attributes -->
+            <div class="drawer-tab-content" id="dtab-otel">
+              <div class="code-panel">
+                <div class="code-panel-header">All OpenTelemetry GenAI Attributes (JSON)</div>
+                <pre class="code-content" id="drawerOtelJson"></pre>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+    </main>
+
+    <!-- VIEW 2: Architecture & Guide (The Educational Representation) -->
+    <main class="view-container" id="viewGuide">
+      <div class="guide-scrollable">
+        <div class="guide-content">
+          <!-- Guide Header -->
+          <div class="guide-hero">
+            <span class="guide-pill">Architecture & Developer Guide</span>
+            <h1>Why NanoTrace?</h1>
+            <p class="guide-lead">
+              A local-first, zero-overhead OpenTelemetry tracing and evaluation engine for AI agents and LLMs. 
+              Designed to eliminate expensive SaaS ingest bills, heavy Docker clusters, and trace-to-eval friction.
+            </p>
+          </div>
+
+          <!-- Feature Columns -->
+          <div class="feature-grid">
+            <div class="feature-card">
+              <div class="feature-icon">⚡️</div>
+              <h3>Microsecond Overhead</h3>
+              <p>Under 15 µs enqueue cost on your main thread using an in-memory lock-free buffer. Critical paths and streaming tokens are never delayed.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">💾</div>
+              <h3>Zero Infrastructure ($0.00)</h3>
+              <p>Runs in-process using embedded DuckDB. No PostgreSQL, Redis, ClickHouse, or MinIO required. Just a single Python package.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">🌐</div>
+              <h3>CNCF OTel GenAI Standards</h3>
+              <p>Native compliance with OpenTelemetry GenAI semantic conventions (v1.27+), including models, tokens, tool calls, and W3C traceparent.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">🎯</div>
+              <h3>Native Trace-to-Eval</h3>
+              <p>1-line export to DeepEval test cases and Ragas evaluation datasets. Includes built-in zero-cost local heuristic evaluations.</p>
+            </div>
+          </div>
+
+          <!-- Comparison Table -->
+          <div class="guide-section">
+            <h2>Platform Comparison: Save Cost & Infrastructure</h2>
+            <p class="section-desc">See how NanoTrace compares with traditional SaaS and self-hosted observability stacks:</p>
+
+            <div class="table-wrapper">
+              <table class="comparison-table">
+                <thead>
+                  <tr>
+                    <th>Dimension</th>
+                    <th class="highlight-col">NanoTrace (Local-First)</th>
+                    <th>Langfuse Cloud</th>
+                    <th>LangSmith</th>
+                    <th>Self-Hosted Cluster</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Monthly Cost</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>$0.00 (Free forever)</strong></td>
+                    <td>$59 – $500+ / month</td>
+                    <td>$39 – $400+ / month</td>
+                    <td>$50 – $200+ (Servers)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Main Thread Latency</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>&lt; 15 µs (&lt; 0.02 ms)</strong></td>
+                    <td>20 – 80 ms (HTTP)</td>
+                    <td>25 – 90 ms (HTTP)</td>
+                    <td>5 – 25 ms (Network)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Infra Requirements</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>None (Single pip install)</strong></td>
+                    <td>SaaS Cloud Account</td>
+                    <td>SaaS Cloud Account</td>
+                    <td>Docker (Postgres + Redis)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Memory Footprint</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>~15 MB</strong></td>
+                    <td>0 MB (Cloud)</td>
+                    <td>0 MB (Cloud)</td>
+                    <td>1,500 MB – 4,000 MB</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Data Privacy</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>100% on your machine</strong></td>
+                    <td>Sent to 3rd-party cloud</td>
+                    <td>Sent to 3rd-party cloud</td>
+                    <td>Self-managed</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Evals Integration</strong></td>
+                    <td class="highlight-col font-mono text-green"><strong>1-line DeepEval &amp; Ragas</strong></td>
+                    <td>Platform fees / Webhooks</td>
+                    <td>Platform fees / UI only</td>
+                    <td>Manual JSON glue code</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Code Integration Walkthrough -->
+          <div class="guide-section">
+            <h2>How to Integrate in 3 Steps</h2>
+            <p class="section-desc">Add NanoTrace to any Python agent or LLM application in seconds:</p>
+
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <h4>Initialize once in your project</h4>
+                <p>Creates a local embedded DuckDB database file in <code>./.traces/nanotrace.duckdb</code>.</p>
+                <div class="code-box">
+                  <code>import nanotrace
+
+# Initialize local zero-overhead engine
+nanotrace.init()</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <h4>Decorate agents, tools, and subagents</h4>
+                <p>Parent-child execution hierarchies, arguments, tool calls, and LLM steps are automatically tracked.</p>
+                <div class="code-box">
+                  <code>@nanotrace.trace_tool(name="search_database")
+def search(query: str):
+    return {"results": ["Relevant document content"]}
+
+@nanotrace.trace_agent(name="ResearchAgent")
+def run_agent(user_query: str):
+    docs = search(user_query)
+    with nanotrace.span("llm_reasoning", attributes={"gen_ai.request.model": "gpt-4o-mini"}):
+        # Your OpenAI / Anthropic / Gemini call here
+        return "Final agent answer"
+
+run_agent("Evaluate AI systems")</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <h4>Run Evaluations (DeepEval / Ragas / Heuristics)</h4>
+                <p>Convert your traces directly into evaluation test cases without custom parsing.</p>
+                <div class="code-box">
+                  <code># 1. Load traces into a TraceDataset
+dataset = nanotrace.load_traces(limit=20)
+
+# 2. Convert directly to DeepEval LLMTestCase objects
+test_cases = dataset.to_deepeval()
+
+# 3. Or convert to Ragas EvaluationDataset
+ragas_dataset = dataset.to_ragas()
+
+# 4. Or run instant local heuristic evaluators (0 tokens consumed!)
+diagnostics = dataset.run_heuristics()</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Open-Source & GitHub Footer Banner -->
+          <div class="guide-footer-banner">
+            <div>
+              <h3>Contribute & Star NanoTrace on GitHub</h3>
+              <p>100% open-source under the Apache-2.0 License. Built for developers and startups.</p>
+            </div>
+            <a href="https://github.com/chetan15994-alt/nanotrace" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+              View Repository on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
