@@ -23,9 +23,11 @@
           <span class="brand-name">NanoTrace</span>
           <span class="version-tag">v0.1.0</span>
         </div>
-        <div class="engine-badge">
+        <div class="engine-badge" id="dbSelectorWrap" title="Switch active DuckDB trace database">
           <span class="pulse-dot"></span>
-          <span>DuckDB Engine Active</span>
+          <select id="dbSelect" class="db-select-dropdown" onchange="onDatabaseChange(this.value)">
+            <option value="">DuckDB Engine Active</option>
+          </select>
         </div>
 
         <!-- Navigation Tabs -->

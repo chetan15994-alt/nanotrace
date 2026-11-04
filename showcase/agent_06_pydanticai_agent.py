@@ -18,8 +18,16 @@ os.environ["PYDANTIC_AI_NO_BANNER"] = "1"
 
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.test import TestModel
+
+try:
+    from pydantic_ai import Agent, RunContext
+    from pydantic_ai.models.test import TestModel
+    HAS_PYDANTIC_AI = True
+except ImportError:
+    HAS_PYDANTIC_AI = False
+    Agent = None
+    RunContext = None
+    TestModel = None
 
 import nanotrace
 from nanotrace.schema.otel import GenAIAttributes, GenAIOperation, SpanKind
@@ -37,16 +45,22 @@ class OrderRecommendation(BaseModel):
 
 
 # ── PydanticAI Agent Definition ─────────────────────────────────────────────
-order_agent = Agent(
-    TestModel(),
-    output_type=OrderRecommendation,
-    system_prompt="You are an enterprise logistics supply chain assistant.",
-)
+if HAS_PYDANTIC_AI:
+    order_agent = Agent(
+        TestModel(),
+        output_type=OrderRecommendation,
+        system_prompt="You are an enterprise logistics supply chain assistant.",
+    )
+
+    @order_agent.tool
+    def check_inventory_db(ctx: RunContext[None], sku: str) -> dict:
+        """Lookup warehouse inventory metrics for a product SKU."""
+        return _query_inventory(sku)
+else:
+    order_agent = None
 
 
-@order_agent.tool
-def check_inventory_db(ctx: RunContext[None], sku: str) -> dict:
-    """Lookup warehouse inventory metrics for a product SKU."""
+def _query_inventory(sku: str) -> dict:
     with nanotrace.span("tool: check_inventory_db", kind=SpanKind.CLIENT, attributes={
         GenAIAttributes.OPERATION_NAME: GenAIOperation.EXECUTE_TOOL.value,
         GenAIAttributes.TOOL_NAME: "check_inventory_db",
@@ -70,19 +84,22 @@ def run_inventory_advisory(sku: str, prompt: str) -> OrderRecommendation:
     """Execute PydanticAI agent run wrapped under NanoTrace OpenTelemetry context."""
     with nanotrace.span("pydantic_ai_core_run", kind=SpanKind.INTERNAL) as sp:
         # Check tool directly to ensure span records under parent
-        inv = check_inventory_db(None, sku=sku)  # type: ignore
+        inv = _query_inventory(sku)
 
-        # Run PydanticAI Agent
-        result = order_agent.run_sync(prompt)
-
-        # Record PydanticAI token usage and attributes into NanoTrace span
-        try:
-            usage = result.usage
-        except Exception:
-            usage = None
-        in_tokens = getattr(usage, "input_tokens", 45)
-        out_tokens = getattr(usage, "output_tokens", 25)
-        total_tokens = getattr(usage, "total_tokens", in_tokens + out_tokens)
+        # Run PydanticAI Agent if installed, otherwise run faithful mock
+        if HAS_PYDANTIC_AI and order_agent:
+            result = order_agent.run_sync(prompt)
+            try:
+                usage = result.usage
+            except Exception:
+                usage = None
+            in_tokens = getattr(usage, "input_tokens", 45)
+            out_tokens = getattr(usage, "output_tokens", 25)
+            total_tokens = getattr(usage, "total_tokens", in_tokens + out_tokens)
+        else:
+            in_tokens = 45
+            out_tokens = 25
+            total_tokens = 70
 
         sp.set_attribute(GenAIAttributes.SYSTEM, "pydantic_ai")
         sp.set_attribute(GenAIAttributes.REQUEST_MODEL, "test:test")

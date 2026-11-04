@@ -168,6 +168,24 @@ body {
   height: 7px;
   background-color: var(--color-success);
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.db-select-dropdown {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  padding: 0 4px;
+}
+
+.db-select-dropdown option {
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 /* Nav Tabs */

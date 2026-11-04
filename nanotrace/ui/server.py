@@ -24,28 +24,58 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
     """Create FastAPI application for NanoTrace UI."""
     app = FastAPI(title="NanoTrace Observability Dashboard", version="0.1.0")
 
-    def get_sink() -> DuckDBSink:
-        return DuckDBSink(db_path=db_path)
+    def resolve_db_path(custom_db: Optional[str] = None) -> str:
+        if not custom_db:
+            return db_path
+        clean_name = os.path.basename(custom_db)
+        if not clean_name.endswith(".duckdb") and clean_name != ":memory:":
+            clean_name += ".duckdb"
+        base_dir = Path(db_path).parent
+        return str(base_dir / clean_name)
+
+    def get_sink(custom_db: Optional[str] = None) -> DuckDBSink:
+        target = resolve_db_path(custom_db)
+        return DuckDBSink(db_path=target)
+
+    @app.get("/api/databases")
+    def list_databases():
+        base_dir = Path(db_path).parent
+        results = []
+        if base_dir.exists():
+            for f in sorted(base_dir.glob("*.duckdb")):
+                try:
+                    s = DuckDBSink(db_path=str(f))
+                    st = s.get_stats()
+                    s.close()
+                    results.append({
+                        "name": f.name,
+                        "total_spans": st.get("total_spans", 0),
+                        "total_traces": st.get("total_traces", 0),
+                        "is_default": (f.name == Path(db_path).name),
+                    })
+                except Exception:
+                    pass
+        return results
 
     @app.get("/api/stats")
-    def get_stats():
-        sink = get_sink()
+    def get_stats(db: Optional[str] = None):
+        sink = get_sink(db)
         try:
             return sink.get_stats()
         finally:
             sink.close()
 
     @app.get("/api/traces")
-    def get_traces(limit: int = 50):
-        sink = get_sink()
+    def get_traces(limit: int = 50, db: Optional[str] = None):
+        sink = get_sink(db)
         try:
             return sink.get_recent_traces(limit=limit)
         finally:
             sink.close()
 
     @app.get("/api/traces/{trace_id}")
-    def get_trace(trace_id: str):
-        sink = get_sink()
+    def get_trace(trace_id: str, db: Optional[str] = None):
+        sink = get_sink(db)
         try:
             spans = sink.get_trace_tree(trace_id)
             if not spans:
@@ -55,8 +85,8 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             sink.close()
 
     @app.get("/api/evals/{trace_id}")
-    def evaluate_trace(trace_id: str):
-        sink = get_sink()
+    def evaluate_trace(trace_id: str, db: Optional[str] = None):
+        sink = get_sink(db)
         try:
             spans = sink.get_trace_tree(trace_id)
             if not spans:

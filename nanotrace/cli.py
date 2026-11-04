@@ -165,5 +165,18 @@ def ingest_file(
         sink.close()
 
 
+@app.command("demo")
+def run_demo(
+    open_ui: bool = typer.Option(False, "--ui", "-u", help="Automatically launch web dashboard after running demo"),
+    port: int = typer.Option(7777, "--port", "-p", help="Port number for dashboard"),
+):
+    """Run the complete showcase suite: 6 agents, multi-agent council, and 10-point validator."""
+    from showcase.run_all_and_validate import run_full_suite, DB_PATH
+    run_full_suite()
+    if open_ui:
+        from nanotrace.ui.server import start_ui
+        start_ui(db_path=DB_PATH, port=port)
+
+
 if __name__ == "__main__":
     app()

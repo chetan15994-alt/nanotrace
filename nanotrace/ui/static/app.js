@@ -7,12 +7,46 @@ let currentTraces = [];
 let activeTraceId = null;
 let activeTraceSpans = [];
 let selectedSpanId = null;
+let currentDb = ""; // empty means server default
 
 // Initialize on DOM ready
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
+  await loadDatabases();
   loadDashboard();
 });
+
+// ==========================================================================
+// Database Management (Dynamic duckdb switching)
+// ==========================================================================
+
+async function loadDatabases() {
+  try {
+    const res = await fetch("/api/databases");
+    const dbs = await res.json();
+    const select = document.getElementById("dbSelect");
+    if (!select || !dbs || dbs.length === 0) return;
+
+    select.innerHTML = dbs.map(d => {
+      const isSelected = (currentDb === d.name || (!currentDb && d.is_default)) ? "selected" : "";
+      return `<option value="${escapeHtml(d.name)}" ${isSelected}>🦆 ${escapeHtml(d.name)} (${d.total_spans} spans)</option>`;
+    }).join("");
+
+    if (!currentDb) {
+      const activeObj = dbs.find(d => d.is_default);
+      if (activeObj) currentDb = activeObj.name;
+    }
+  } catch (err) {
+    console.error("Failed to list databases", err);
+  }
+}
+
+function onDatabaseChange(dbName) {
+  currentDb = dbName;
+  activeTraceId = null;
+  selectedSpanId = null;
+  loadDashboard();
+}
 
 // ==========================================================================
 // Theme Management (Light & Dark with persistence)
@@ -69,7 +103,8 @@ async function loadDashboard() {
 
 async function loadStats() {
   try {
-    const res = await fetch("/api/stats");
+    const url = currentDb ? `/api/stats?db=${encodeURIComponent(currentDb)}` : "/api/stats";
+    const res = await fetch(url);
     const data = await res.json();
     document.getElementById("valTotalTraces").innerText = data.total_traces || 0;
     document.getElementById("valTotalSpans").innerText = data.total_spans || 0;
@@ -85,7 +120,8 @@ async function loadStats() {
 async function loadTraces() {
   const listEl = document.getElementById("traceList");
   try {
-    const res = await fetch("/api/traces");
+    const url = currentDb ? `/api/traces?db=${encodeURIComponent(currentDb)}` : "/api/traces";
+    const res = await fetch(url);
     currentTraces = await res.json();
     renderTraceList(currentTraces);
   } catch (err) {
@@ -150,7 +186,8 @@ async function selectTrace(traceId) {
   closeDrawer();
 
   try {
-    const res = await fetch(`/api/traces/${traceId}`);
+    const url = currentDb ? `/api/traces/${traceId}?db=${encodeURIComponent(currentDb)}` : `/api/traces/${traceId}`;
+    const res = await fetch(url);
     activeTraceSpans = await res.json();
 
     const rootSpan = activeTraceSpans.find(s => !s.parent_span_id) || activeTraceSpans[0];
@@ -329,7 +366,8 @@ async function runTraceEvals() {
   card.style.display = "flex";
 
   try {
-    const res = await fetch(`/api/evals/${activeTraceId}`);
+    const url = currentDb ? `/api/evals/${activeTraceId}?db=${encodeURIComponent(currentDb)}` : `/api/evals/${activeTraceId}`;
+    const res = await fetch(url);
     const results = await res.json();
 
     card.innerHTML = results.map(r => {
