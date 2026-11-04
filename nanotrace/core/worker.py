@@ -38,6 +38,11 @@ class FlushWorker:
         self._lock = threading.Lock()
         self._started = False
 
+    @property
+    def is_running(self) -> bool:
+        """Return True if background worker is actively running."""
+        return self._started and not self._shutdown_event.is_set()
+
     def start(self) -> None:
         """Start the background worker daemon."""
         with self._lock:

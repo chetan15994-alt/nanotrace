@@ -65,6 +65,34 @@ pip install "nanotrace[all]"
 
 ---
 
+## 📖 Engineering User Manual & Architecture Guide
+
+For an in-depth visual walkthrough with Mermaid flowcharts, sequence diagrams, and tree architectures across 6 distinct agent design patterns and multi-agent systems, read the **[Complete User Manual](docs/USER_MANUAL.md)**.
+
+---
+
+## 🎪 Agent Showcase & Master Test Harness
+
+NanoTrace includes an end-to-end showcase suite featuring **6 production-realistic agents**, a **multi-agent executive council**, and a **10-checkpoint validation harness**:
+
+| Showcase Module | Tracing Pattern | Framework / Model | Highlights |
+|---|---|---|---|
+| [`agent_01_customer_support.py`](showcase/agent_01_customer_support.py) | Linear Multi-Stage Chain | GPT-4o-mini + GPT-4o | Ticket classification & empathetic customer resolution |
+| [`agent_02_research_assistant.py`](showcase/agent_02_research_assistant.py) | ReAct Tool Loop | Claude 3.5 Sonnet | Dynamic reasoning depth & variable-depth tool calls |
+| [`agent_03_code_review.py`](showcase/agent_03_code_review.py) | Embedding & Vector RAG | GPT-4o + text-embedding-3-small | OTel `gen_ai.retrieval.*` attributes & CWE security audits |
+| [`agent_04_data_pipeline.py`](showcase/agent_04_data_pipeline.py) | Error Handling & SRE Triage | GPT-4o-mini | Transient timeouts, `StatusCode.ERROR`, & automated retries |
+| [`agent_05_meeting_summarizer.py`](showcase/agent_05_meeting_summarizer.py) | Multi-Model Pipeline | Gemini 2.0 Flash + Claude 3.5 | Fast extraction paired with strategic executive synthesis |
+| [`agent_06_pydanticai_agent.py`](showcase/agent_06_pydanticai_agent.py) | Framework Integration | PydanticAI 2.x (TestModel) | Validated Pydantic `BaseModel` outputs & supply chain logic |
+| [`multi_agent_system.py`](showcase/multi_agent_system.py) | Supervisor / Router | 4 Specialists + Orchestrator | Hierarchical council (Market, Finance, Tech, Legal) under single TraceID |
+| [`healer_showcase.py`](showcase/healer_showcase.py) | Telemetry Repair (UITH) | Multi-Framework | Reconciles LangGraph, CrewAI, AutoGen, and orphan spans |
+
+Run the complete suite and validate all 10 checkpoints with a single command:
+```bash
+python showcase/run_all_and_validate.py
+```
+
+---
+
 ## ⚡️ Quickstart in 30 Seconds
 
 ### 1. Basic Agent Tracing

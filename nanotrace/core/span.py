@@ -183,9 +183,9 @@ class Span:
             "gen_ai_total_tokens": int(attrs.get(GenAIAttributes.USAGE_TOTAL_TOKENS) or 0),
             "gen_ai_cost_usd": float(attrs.get(GenAIAttributes.USAGE_COST_USD) or 0.0),
             
-            # JSON payloads for nested inspection
-            "prompt_payload": json.dumps(attrs.get(GenAIAttributes.PROMPT) or attrs.get(GenAIAttributes.MESSAGES) or ""),
-            "completion_payload": json.dumps(attrs.get(GenAIAttributes.COMPLETION) or ""),
-            "attributes_json": json.dumps(attrs),
-            "events_json": json.dumps([e.to_dict() for e in self.events]),
+            # JSON payloads for nested inspection (with default=str for Pydantic models, Dataclasses, and arbitrary objects)
+            "prompt_payload": json.dumps(attrs.get(GenAIAttributes.PROMPT) or attrs.get(GenAIAttributes.MESSAGES) or "", default=str),
+            "completion_payload": json.dumps(attrs.get(GenAIAttributes.COMPLETION) or "", default=str),
+            "attributes_json": json.dumps(attrs, default=str),
+            "events_json": json.dumps([e.to_dict() for e in self.events], default=str),
         }

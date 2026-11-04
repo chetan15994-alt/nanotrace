@@ -94,10 +94,17 @@ class NanoTracer:
         def decorator(func: Callable) -> Callable:
             span_name = name or func.__name__
 
+            def _get_active():
+                if self.worker and getattr(self.worker, "is_running", False):
+                    return self
+                from nanotrace import get_tracer
+                return get_tracer()
+
             if inspect.iscoroutinefunction(func):
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
-                    with self.span(span_name, kind=SpanKind.INTERNAL) as sp:
+                    tracer = _get_active()
+                    with tracer.span(span_name, kind=SpanKind.INTERNAL) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.AGENT_RUN.value)
                         sp.set_attribute(GenAIAttributes.AGENT_NAME, span_name)
                         if agent_type:
@@ -110,7 +117,8 @@ class NanoTracer:
             else:
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
-                    with self.span(span_name, kind=SpanKind.INTERNAL) as sp:
+                    tracer = _get_active()
+                    with tracer.span(span_name, kind=SpanKind.INTERNAL) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.AGENT_RUN.value)
                         sp.set_attribute(GenAIAttributes.AGENT_NAME, span_name)
                         if agent_type:
@@ -131,10 +139,17 @@ class NanoTracer:
         def decorator(func: Callable) -> Callable:
             tool_name = name or func.__name__
 
+            def _get_active():
+                if self.worker and getattr(self.worker, "is_running", False):
+                    return self
+                from nanotrace import get_tracer
+                return get_tracer()
+
             if inspect.iscoroutinefunction(func):
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
-                    with self.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
+                    tracer = _get_active()
+                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.EXECUTE_TOOL.value)
                         sp.set_attribute(GenAIAttributes.TOOL_NAME, tool_name)
                         _record_inputs(sp, args, kwargs, is_tool=True)
@@ -145,7 +160,8 @@ class NanoTracer:
             else:
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
-                    with self.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
+                    tracer = _get_active()
+                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.EXECUTE_TOOL.value)
                         sp.set_attribute(GenAIAttributes.TOOL_NAME, tool_name)
                         _record_inputs(sp, args, kwargs, is_tool=True)
@@ -191,9 +207,15 @@ def _record_inputs(span: Span, args: tuple, kwargs: dict, is_tool: bool = False)
 def _record_output(span: Span, result: Any, is_tool: bool = False) -> None:
     """Helper to safely record function output."""
     try:
+        serialized = result
+        if hasattr(result, "model_dump"):
+            serialized = result.model_dump()
+        elif hasattr(result, "dict") and callable(result.dict):
+            serialized = result.dict()
+
         if is_tool:
-            span.set_attribute(GenAIAttributes.TOOL_OUTPUT, result)
+            span.set_attribute(GenAIAttributes.TOOL_OUTPUT, serialized)
         else:
-            span.set_attribute(GenAIAttributes.COMPLETION, result)
+            span.set_attribute(GenAIAttributes.COMPLETION, serialized)
     except Exception:
         pass

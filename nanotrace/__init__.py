@@ -40,6 +40,11 @@ def init(
     """
     global _DEFAULT_TRACER
     if _DEFAULT_TRACER is not None:
+        # If already initialized to the same database path and worker is running, reuse instance
+        if getattr(_DEFAULT_TRACER.sink, "db_path", None) == storage_path and getattr(_DEFAULT_TRACER.worker, "is_running", False):
+            if auto_patch:
+                autoinstrument(_DEFAULT_TRACER)
+            return _DEFAULT_TRACER
         _DEFAULT_TRACER.shutdown()
 
     _DEFAULT_TRACER = NanoTracer(
