@@ -14,6 +14,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   await loadDatabases();
   loadDashboard();
+  if (window.location.hash.toLowerCase().includes("guide")) {
+    switchView("guide");
+  }
 });
 
 // ==========================================================================

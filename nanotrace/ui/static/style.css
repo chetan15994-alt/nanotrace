@@ -1662,6 +1662,126 @@ body {
   border-color: var(--accent-primary);
 }
 
+/* Multi-Agent Tree Components */
+.tree-root-container {
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+[data-theme="dark"] .tree-root-container {
+  background: #0d1b33;
+  border-color: #2563eb;
+}
+
+.tree-feeder-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 14px 0;
+}
+
+.feeder-stem {
+  width: 2px;
+  height: 14px;
+  background: #3b82f6;
+}
+
+.feeder-horizontal {
+  width: 75%;
+  height: 2px;
+  background: #3b82f6;
+}
+
+.feeder-drops {
+  width: 75%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.drop-line {
+  width: 2px;
+  height: 12px;
+  background: #3b82f6;
+}
+
+.tree-root-left h3 {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.tree-root-left p {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
+}
+
+.tree-branches-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.tree-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tree-node-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: var(--shadow-sm);
+}
+
+.tree-node-card.node-specialist {
+  border-top: 3px solid var(--accent-primary);
+  background: var(--bg-surface-subtle);
+}
+
+.tree-node-card.node-tool {
+  background: var(--bg-surface);
+  border-left: 3px solid var(--color-success);
+}
+
+.tree-node-card.node-llm {
+  background: var(--bg-surface);
+  border-left: 3px solid #7c3aed;
+}
+
+.node-role-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.node-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.node-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
 .guide-footer-banner h3 {
   font-size: 1rem;
   font-weight: 600;
