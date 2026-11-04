@@ -1249,6 +1249,165 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+/* Collapsible Deep-Dive Guide Card */
+.collapsible-guide-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.collapsible-guide-card[open] {
+  border-color: var(--accent-primary);
+}
+
+.collapsible-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  background: var(--bg-surface);
+  transition: background 0.15s ease;
+}
+
+.collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-summary:hover {
+  background: var(--bg-surface-subtle);
+}
+
+.summary-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent-primary-text);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.summary-left h3 {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.summary-hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.summary-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.collapsible-guide-card[open] .summary-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-primary);
+}
+
+.collapsible-content {
+  padding: 0 22px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 20px;
+}
+
+.guide-subcard {
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.guide-subcard h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.guide-subcard p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.env-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.env-chip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.env-chip strong {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.env-chip span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.personas-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.persona-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.persona-title {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-primary-text);
+  margin-bottom: 6px;
+}
+
+.persona-box p {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-bottom: 0;
+}
+
 .step-num {
   display: flex;
   align-items: center;

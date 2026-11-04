@@ -17,6 +17,7 @@ from nanotrace.schema.otel import (
 )
 from nanotrace.core.span import Span, SpanEvent
 from nanotrace.core.tracer import NanoTracer
+from nanotrace.core.healer import TraceHealer
 from nanotrace.eval.bridge import load_traces, TraceDataset
 from nanotrace.patchers import autoinstrument
 
@@ -106,6 +107,25 @@ def shutdown() -> None:
         _DEFAULT_TRACER = None
 
 
+def ingest(
+    data: Any,
+    trace_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> list[Span]:
+    """Universal Telemetry Ingestion: Ingest and heal chaotic or non-standard telemetry.
+
+    Supports LangGraph trees, CrewAI logs, AutoGen conversation arrays, raw dictionaries,
+    and stdout text. Automatically performs fuzzy key mapping, orphan tree grafting,
+    token estimation, and soft error detection before writing to DuckDB.
+    """
+    tracer = get_tracer()
+    healer = TraceHealer()
+    spans = healer.parse_and_heal(data, default_trace_id=trace_id, default_session_id=session_id)
+    if spans:
+        tracer.sink.write_spans(spans)
+    return spans
+
+
 __all__ = [
     "__version__",
     "init",
@@ -115,6 +135,8 @@ __all__ = [
     "trace_tool",
     "flush",
     "shutdown",
+    "ingest",
+    "TraceHealer",
     "load_traces",
     "TraceDataset",
     "autoinstrument",

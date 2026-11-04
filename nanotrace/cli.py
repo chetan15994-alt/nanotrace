@@ -135,5 +135,35 @@ def run_evals(
         sink.close()
 
 
+@app.command("ingest")
+def ingest_file(
+    file_path: str = typer.Argument(..., help="Path to JSON, JSONL, or text log file to ingest"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Ingest and self-heal messy or non-standard telemetry from a file."""
+    import os
+    from pathlib import Path
+    from nanotrace.core.healer import TraceHealer
+
+    if not os.path.exists(file_path):
+        console.print(f"[red]Error: File not found: {file_path}[/red]")
+        raise typer.Exit(code=1)
+
+    content = Path(file_path).read_text(encoding="utf-8")
+    healer = TraceHealer()
+    spans = healer.parse_and_heal(content)
+
+    if not spans:
+        console.print("[yellow]Warning: No spans could be extracted from file.[/yellow]")
+        return
+
+    sink = DuckDBSink(db_path=db_path)
+    try:
+        inserted = sink.write_spans(spans)
+        console.print(f"[green]✓ Successfully healed and ingested [bold]{inserted}[/bold] spans into DuckDB![/green]")
+    finally:
+        sink.close()
+
+
 if __name__ == "__main__":
     app()

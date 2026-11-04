@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 from typer.testing import CliRunner
 from nanotrace.cli import app
@@ -38,3 +39,24 @@ def test_cli_stats_and_query():
         res = runner.invoke(app, ["export", "--output", parquet_out, "--db", db_path])
         assert res.exit_code == 0
         assert os.path.exists(parquet_out)
+
+        # Test ingest command with JSON file
+        json_file = os.path.join(tmpdir, "messy_trace.json")
+        with open(json_file, "w") as f:
+            json.dump({
+                "agent": "CLI_Ingest_Agent",
+                "task": "Test CLI ingestion",
+                "output": "CLI ingestion successful",
+                "usage": {"prompt_tokens": 120, "completion_tokens": 40}
+            }, f)
+
+        res_ingest = runner.invoke(app, ["ingest", json_file, "--db", db_path])
+        assert res_ingest.exit_code == 0
+        assert "Successfully healed and ingested" in res_ingest.output
+
+        # Verify ingested span is in DuckDB
+        sink2 = DuckDBSink(db_path=db_path)
+        rows = sink2.query("SELECT * FROM spans WHERE name = 'CLI_Ingest_Agent'")
+        assert len(rows) == 1
+        assert rows[0]["gen_ai_input_tokens"] == 120
+        sink2.close()
