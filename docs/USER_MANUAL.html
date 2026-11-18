@@ -3017,7 +3017,10 @@
       <a href="#nanoshield" class="nav-item"><span class="nav-num">10</span> NanoShield Guardrails</a>
       <a href="#time-travel-debugger" class="nav-item"><span class="nav-num">11</span> Time-Travel Debugger</a>
       <a href="#regression-suite" class="nav-item"><span class="nav-num">12</span> Regression Suite &amp; CI/CD</a>
-      <a href="#cli-reference" class="nav-item"><span class="nav-num">13</span> CLI Reference</a>
+      <a href="#prompt-studio" class="nav-item"><span class="nav-num">13</span> NanoPrompt Studio</a>
+      <a href="#feedback-collector" class="nav-item"><span class="nav-num">14</span> Feedback &amp; Sentiment</a>
+      <a href="#multimodal-inspector" class="nav-item"><span class="nav-num">15</span> Multi-Modal Inspector</a>
+      <a href="#cli-reference" class="nav-item"><span class="nav-num">16</span> CLI Reference</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -4840,10 +4843,112 @@ response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
       </div>
     </section>
 
-    <!-- SECTION 13: CLI Reference & Diagnostics -->
-    <section class="section-block" id="cli-reference">
+    <!-- SECTION 13: NanoPrompt Studio & Registry -->
+    <section class="section-block" id="prompt-studio">
       <div class="section-header">
         <span class="section-idx">13</span>
+        <h2>NanoPrompt Studio &amp; Versioned Template Registry</h2>
+      </div>
+      <p style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:1.05rem;">
+        An embedded, zero-latency prompt registry and interactive sandbox running directly inside your DuckDB lakehouse. Manage semver versions, discover <code>{{variable}}</code> placeholders, and compile templates in microseconds.
+      </p>
+
+      <div class="grid-2" style="margin-bottom:2rem;">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-primary-bg); color:var(--color-primary);">Microsecond Latency</span>
+          <h3>⚡️ In-Memory Lookups (&lt; 0.1 µs)</h3>
+          <p>Hot prompts are cached in memory for sub-microsecond retrieval (74 nanoseconds), ensuring zero overhead on high-frequency agent thought cycles.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Release Management</span>
+          <h3>🏷️ Semver &amp; Tag Promotion</h3>
+          <p>Tag releases as <code>production</code>, <code>staging</code>, or <code>dev</code> with automatic uniqueness enforcement to eliminate ambiguous deployment states.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(234, 179, 8, 0.15); color:#eab308;">Interactive UI</span>
+          <h3>🧪 Live Variable Sandbox</h3>
+          <p>Auto-populates input fields for every detected <code>{{var}}</code> with live preview updates, plus one-click <strong>"Test in Regression Matrix"</strong>.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(148, 163, 184, 0.15); color:#64748b;">CLI Automation</span>
+          <h3>💻 Full Terminal Control</h3>
+          <p>Manage prompts via <code>nanotrace prompt list</code>, <code>get</code>, <code>set</code>, and <code>promote</code> directly in CI/CD build scripts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 14: NanoFeedback Collector -->
+    <section class="section-block" id="feedback-collector">
+      <div class="section-header">
+        <span class="section-idx">14</span>
+        <h2>NanoFeedback Collector &amp; End-User Sentiment Analytics</h2>
+      </div>
+      <p style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:1.05rem;">
+        Capture human sentiment (+1 / -1) directly onto runtime traces and automatically identify high-performing traces for conversion into Golden Evaluation cases.
+      </p>
+
+      <div class="grid-2" style="margin-bottom:2rem;">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Net Sentiment KPI</span>
+          <h3>📊 Real-Time Metrics Bar</h3>
+          <p>Displays aggregate Net Sentiment % across all agent traces in the top dashboard HUD, updating immediately as reviews arrive.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(234, 179, 8, 0.15); color:#eab308;">Golden Mining</span>
+          <h3>🌟 Automatic Golden Recommendations</h3>
+          <p>Traces marked with positive sentiment automatically display a <strong>"🌟 Recommended for Golden Dataset"</strong> banner in the span drawer with 1-click addition.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-primary-bg); color:var(--color-primary);">Embeddable Client</span>
+          <h3>📦 &lt; 2KB Vanilla JS Library</h3>
+          <p>Integrate user feedback buttons into any external web application or customer portal using <code>nanotrace-feedback.js</code>.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(148, 163, 184, 0.15); color:#64748b;">DuckDB Persistence</span>
+          <h3>🦆 SQL Analytics on Feedback</h3>
+          <p>Queried alongside traces in DuckDB for automated quality analysis, user satisfaction reporting, and model correlation.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 15: Multi-Modal Payload Inspector -->
+    <section class="section-block" id="multimodal-inspector">
+      <div class="section-header">
+        <span class="section-idx">15</span>
+        <h2>Multi-Modal Payload Inspector &amp; Interactive Lightbox</h2>
+      </div>
+      <p style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:1.05rem;">
+        Inspect base64 data URIs, audio streams, and visual assets without browser memory bloat or DOM freezing.
+      </p>
+
+      <div class="grid-2" style="margin-bottom:2rem;">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-primary-bg); color:var(--color-primary);">Display Optimization</span>
+          <h3>🧹 Base64 DOM Sanitization</h3>
+          <p>Replaces multi-kilobyte raw base64 data URIs with semantic summary badges (<code>[🖼️ Embedded Media: image/png (48.2 KB)]</code>) to maintain 60 FPS scrolling.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Visual Gallery</span>
+          <h3>🖼️ Dedicated Media Tab</h3>
+          <p>Inspect thumbnail previews directly in the Span Drawer under the <strong>Media &amp; Visuals</strong> tab with media count badge indicators.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(234, 179, 8, 0.15); color:#eab308;">High-Res Inspection</span>
+          <h3>🔍 Interactive Lightbox Modal</h3>
+          <p>Click any thumbnail to open an edge-to-edge modal with zoom controls, MIME details, and one-click image URL copying.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:rgba(148, 163, 184, 0.15); color:#64748b;">Format Support</span>
+          <h3>🎵 Images, Audio &amp; PDFs</h3>
+          <p>Natively parses PNG, JPEG, WEBP, GIF, SVG, MP3, WAV, OGG, and PDF documents embedded in agent conversations.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 16: CLI Reference & Diagnostics -->
+    <section class="section-block" id="cli-reference">
+      <div class="section-header">
+        <span class="section-idx">16</span>
         <h2>Command-Line Interface (CLI) &amp; Operational Reference</h2>
       </div>
 
@@ -4876,6 +4981,41 @@ response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
               <td><code>nanotrace golden export</code></td>
               <td>Export a golden dataset to a portable JSONL benchmark file</td>
               <td><code>--dataset &lt;name&gt; --output cases.jsonl</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace prompt list</code></td>
+              <td>List all registered prompt templates and active release tags</td>
+              <td><code>--db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace prompt get</code></td>
+              <td>Display prompt template string and extracted variables</td>
+              <td><code>&lt;name&gt; --tag &lt;tag&gt; --db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace prompt set</code></td>
+              <td>Create or update a versioned prompt template</td>
+              <td><code>&lt;name&gt; &lt;template&gt; --version &lt;v&gt; --tag &lt;tag&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace prompt promote</code></td>
+              <td>Promote a prompt version to a release tag (e.g. production)</td>
+              <td><code>&lt;name&gt; &lt;version&gt; --tag &lt;tag&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace feedback record</code></td>
+              <td>Record user sentiment (+1 / -1) and comment on a trace</td>
+              <td><code>&lt;trace_id&gt; --score 1.0 --comment "Good"</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace feedback list</code></td>
+              <td>List recorded feedback entries across all traces</td>
+              <td><code>--trace-id &lt;id&gt; --db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace feedback stats</code></td>
+              <td>Display aggregate feedback metrics and net sentiment %</td>
+              <td><code>--db &lt;path&gt;</code></td>
             </tr>
             <tr>
               <td><code>nanotrace run</code></td>

@@ -477,5 +477,194 @@ def export_golden_dataset(
 app.add_typer(golden_app, name="golden")
 
 
+# ==============================================================================
+# Phase 4: Prompt Studio & Feedback Collector CLI
+# ==============================================================================
+
+prompt_app = typer.Typer(help="Manage versioned prompt templates in Prompt Studio.")
+
+
+@prompt_app.command("list")
+def list_prompts_cli(
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """List all versioned prompts in the Prompt Studio registry."""
+    from nanotrace.prompts import PromptRegistry
+
+    reg = PromptRegistry(db_path=db_path)
+    prompts = reg.list_prompts()
+    if not prompts:
+        console.print("[yellow]No prompts registered in Prompt Studio.[/yellow]")
+        return
+
+    table = Table(title="📝 NanoTrace Prompt Studio Registry", border_style="cyan")
+    table.add_column("Prompt Name", style="bold cyan", no_wrap=True)
+    table.add_column("Latest Version", justify="center")
+    table.add_column("Active Tags", style="green")
+    table.add_column("Variables", style="yellow")
+    table.add_column("Template Preview", style="dim")
+    table.add_column("Last Updated", style="dim")
+
+    for p in prompts:
+        tags_str = ", ".join(p["active_tags"]) or "none"
+        vars_str = ", ".join(p["variables"]) or "none"
+        table.add_row(
+            p["name"],
+            p["latest_version"],
+            tags_str,
+            vars_str,
+            p["template_preview"][:50],
+            p["last_updated"][:19],
+        )
+
+    console.print(table)
+
+
+@prompt_app.command("get")
+def get_prompt_cli(
+    name: str = typer.Argument(..., help="Name of prompt template"),
+    tag: Optional[str] = typer.Option(None, "--tag", "-t", help="Tag filter (e.g. production, staging)"),
+    version: Optional[str] = typer.Option(None, "--version", "-v", help="Exact version (e.g. v1.0.0)"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Retrieve and display a prompt template by name and tag/version."""
+    from nanotrace.prompts import PromptRegistry
+    from nanotrace.exceptions import PromptError
+
+    reg = PromptRegistry(db_path=db_path)
+    try:
+        p = reg.get(name, tag=tag, version=version)
+        console.print(Panel(
+            p.template,
+            title=f"[bold cyan]Prompt: {p.name} ({p.version})[/bold cyan] [green][{', '.join(p.tags)}][/green]",
+            subtitle=f"Variables: {', '.join(p.variables) if p.variables else 'None'}",
+            border_style="cyan",
+        ))
+    except PromptError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@prompt_app.command("set")
+def set_prompt_cli(
+    name: str = typer.Argument(..., help="Prompt template name"),
+    template: str = typer.Option(..., "--template", "-m", help="Prompt template string with {{variables}}"),
+    version: str = typer.Option("v1.0.0", "--version", "-v", help="Version tag (e.g. v1.0.0)"),
+    tag: Optional[str] = typer.Option(None, "--tag", "-t", help="Initial tag to apply (e.g. production)"),
+    author: str = typer.Option("cli", "--author", "-a", help="Author identifier"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Create or update a versioned prompt in the registry."""
+    from nanotrace.prompts import PromptRegistry, PromptTemplate
+
+    reg = PromptRegistry(db_path=db_path)
+    tags = [tag] if tag else []
+    p = PromptTemplate(name=name, template=template, version=version, tags=tags, author=author)
+    saved = reg.save(p)
+    console.print(f"[green]✓ Saved prompt [bold]{saved.name}[/bold] ({saved.version}) with {len(saved.variables)} variables![/green]")
+
+
+@prompt_app.command("promote")
+def promote_prompt_cli(
+    name: str = typer.Argument(..., help="Prompt template name"),
+    version: str = typer.Argument(..., help="Version to promote"),
+    tag: str = typer.Option("production", "--tag", "-t", help="Tag to assign (e.g. production, staging)"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Promote a prompt version to a release tag (e.g. production, staging)."""
+    from nanotrace.prompts import PromptRegistry
+    from nanotrace.exceptions import PromptError
+
+    reg = PromptRegistry(db_path=db_path)
+    try:
+        promoted = reg.promote(name=name, version=version, tag=tag)
+        console.print(f"[green]✓ Successfully promoted [bold]{promoted.name}[/bold] ({promoted.version}) to [bold yellow]{tag}[/bold yellow]![/green]")
+    except PromptError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+feedback_app = typer.Typer(help="Record and inspect end-user feedback on traces.")
+
+
+@feedback_app.command("record")
+def record_feedback_cli(
+    trace_id: str = typer.Argument(..., help="Target trace ID to associate feedback with"),
+    score: float = typer.Option(..., "--score", "-s", help="Rating score (-1.0 to 1.0, e.g. 1.0 = positive, -1.0 = negative)"),
+    comment: Optional[str] = typer.Option(None, "--comment", "-c", help="User feedback comment text"),
+    user_id: Optional[str] = typer.Option(None, "--user", "-u", help="User identifier"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Record user feedback rating on a trace."""
+    from nanotrace.feedback import FeedbackCollector
+
+    collector = FeedbackCollector(db_path=db_path)
+    entry = collector.record(trace_id=trace_id, score=score, comment=comment, user_id=user_id)
+    icon = "👍" if score > 0 else ("👎" if score < 0 else "➖")
+    console.print(f"[green]✓ Recorded {icon} feedback [bold]{entry.feedback_id}[/bold] for trace [bold]{trace_id[:12]}[/bold] (score: {score:+0.1f})![/green]")
+
+
+@feedback_app.command("list")
+def list_feedback_cli(
+    trace_id: Optional[str] = typer.Option(None, "--trace-id", "-t", help="Filter feedback by trace ID"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Max feedback rows to display"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """List recorded feedback entries."""
+    from nanotrace.feedback import FeedbackCollector
+
+    collector = FeedbackCollector(db_path=db_path)
+    entries = collector.get_for_trace(trace_id) if trace_id else collector.list_feedback(limit=limit)
+    if not entries:
+        console.print("[yellow]No feedback recorded.[/yellow]")
+        return
+
+    table = Table(title="💬 NanoTrace User Feedback Logs", border_style="magenta")
+    table.add_column("Feedback ID", style="dim", no_wrap=True)
+    table.add_column("Trace ID", style="bold cyan")
+    table.add_column("Score", justify="center")
+    table.add_column("Comment")
+    table.add_column("User", style="dim")
+    table.add_column("Created", style="dim")
+
+    for e in entries:
+        icon = "[green]👍 +1[/green]" if e.score > 0 else ("[red]👎 -1[/red]" if e.score < 0 else "[yellow]➖ 0[/yellow]")
+        table.add_row(
+            e.feedback_id[:12],
+            e.trace_id[:12],
+            icon,
+            e.comment or "",
+            e.user_id or "anonymous",
+            e.created_at[:19],
+        )
+
+    console.print(table)
+
+
+@feedback_app.command("stats")
+def feedback_stats_cli(
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Display aggregate feedback sentiment statistics."""
+    from nanotrace.feedback import FeedbackCollector
+
+    collector = FeedbackCollector(db_path=db_path)
+    stats = collector.get_stats()
+
+    summary_text = (
+        f"Total Feedback: [bold]{stats['total_feedback']}[/bold] | "
+        f"Positive: [green]{stats['positive_count']}[/green] | "
+        f"Negative: [red]{stats['negative_count']}[/red] | "
+        f"Neutral: [yellow]{stats['neutral_count']}[/yellow]\n"
+        f"Average Score: [bold]{stats['average_score']:+.2f}[/bold] | "
+        f"Net Sentiment: [bold cyan]{stats['net_sentiment_pct']:+.1f}%[/bold cyan]"
+    )
+    console.print(Panel(summary_text, title="[bold magenta]💬 Feedback Sentiment Analytics[/bold magenta]", border_style="magenta"))
+
+
+app.add_typer(prompt_app, name="prompt")
+app.add_typer(feedback_app, name="feedback")
+
+
 if __name__ == "__main__":
     app()

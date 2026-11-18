@@ -41,3 +41,13 @@ class CircuitBreakerTrip(NanoTraceError):
 class ReplayError(NanoTraceError):
     """Raised when time-travel replay or span forking encounters an error."""
     pass
+
+
+class PromptError(NanoTraceError):
+    """Raised when prompt compilation, registration, or version retrieval fails."""
+    pass
+
+
+class FeedbackError(NanoTraceError):
+    """Raised when recording or retrieving trace feedback fails."""
+    pass

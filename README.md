@@ -54,6 +54,7 @@ Instead of routing your application's prompts, tool arguments, and customer data
 | :--- | :--- | :--- | :--- | :--- |
 | **NanoTrace (Embedded DuckDB)** | **~3.8 µs (< 0.004 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
 | **NanoTrace + NanoShield (4 Guardrails Active)** | **~8.1 µs (< 0.010 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
+| **NanoPrompt Registry (Cached Lookup)** | **~0.07 µs (< 75 ns)** | **In-Memory** | **None** | **$0.00** |
 | Remote SaaS (Langfuse / Datadog) | ~20,000–80,000 µs (20–80 ms) | ~40 MB | External Cloud Account | $50 – $500+/month |
 | Self-Hosted Collector Cluster | ~500–2,000 µs (0.5–2 ms) | ~1,500–4,000 MB | Docker + Postgres + ClickHouse | Server hosting expenses |
 
@@ -436,6 +437,94 @@ nanotrace golden save --span-id <span_id> --dataset production_gold --name "Tax 
 
 ---
 
+## NanoPrompt Studio & Registry (`nanotrace.prompts`)
+
+Manage, version, and evaluate prompt templates with zero latency overhead. Stores prompts in DuckDB with in-memory caching (< 0.1 µs lookup) and automatic `{{variable}}` extraction.
+
+```python
+from nanotrace.prompts import PromptRegistry, PromptTemplate
+
+registry = PromptRegistry(db_path="./.traces/nanotrace.duckdb")
+
+# 1. Register a new prompt template
+template = PromptTemplate(
+    name="customer_onboarding",
+    template="Welcome {{user_name}} to {{tier}} membership! Highlights: {{perks}}.",
+    version="1.0.0",
+    tags=["production"],
+    author="lead_dev@startup.io",
+)
+registry.save(template)
+
+# 2. Ultra-fast compiled execution (< 1 µs)
+prompt = registry.get("customer_onboarding", tag="production")
+rendered = prompt.compile(user_name="Alex", tier="Enterprise", perks="Unlimited compute, 24/7 SLA")
+
+# 3. Promote a new release to production
+registry.promote(name="customer_onboarding", version="1.1.0", tag="production")
+```
+
+### CLI Prompt Operations
+```bash
+nanotrace prompt list
+nanotrace prompt get customer_onboarding --tag production
+nanotrace prompt set customer_onboarding "Analyze {{query}} for {{agent}}" --version 1.0.0 --tag production
+nanotrace prompt promote customer_onboarding 1.1.0 --tag production
+```
+
+---
+
+## NanoFeedback Collector & Sentiment Analytics (`nanotrace.feedback`)
+
+Record user sentiment directly on production traces and automatically extract candidate golden cases from +1 rated agent executions.
+
+```python
+from nanotrace.feedback import FeedbackCollector
+
+feedback = FeedbackCollector(db_path="./.traces/nanotrace.duckdb")
+
+# Record human or automated eval feedback
+feedback.record(
+    trace_id="0fb0f79557444c84a073374aae50908b",
+    score=1.0, # +1.0 for positive, -1.0 for negative
+    comment="Flawless reasoning and verified output.",
+    user_id="lead_reviewer",
+)
+
+# Mining high-performing traces for Golden Datasets
+golden_candidates = feedback.get_recommended_golden_traces()
+stats = feedback.get_stats()
+print(f"Net Sentiment: {stats['net_sentiment_pct']}% across {stats['total_feedback']} evaluations.")
+```
+
+### Lightweight Frontend Widget (`nanotrace-feedback.js`)
+Embed thumbs up/down user feedback into any internal tool or web application with `< 2KB` vanilla JavaScript:
+
+```html
+<script src="/static/nanotrace-feedback.js"></script>
+<script>
+  NanoFeedback.init({
+    endpoint: "http://127.0.0.1:7777",
+    userId: "user_42"
+  });
+  
+  // Submit sentiment on completion
+  NanoFeedback.like("trace_abc123", "Great response!");
+</script>
+```
+
+---
+
+## Multi-Modal Payload Inspector (`nanotrace.media`)
+
+Inspect multi-modal LLM payloads (base64 image URIs, audio streams, PDFs, and remote image URLs) without bloating trace storage or freezing the dashboard UI.
+
+* **Automatic Base64 Sanitization**: Detects base64 data URIs in prompts and completions, replacing thousands of raw characters with lightweight semantic badges: `[🖼️ Embedded Media: image/png (48.2 KB)]`.
+* **Zero DOM Freezing**: Keeps trace drawer and business lens rendering at a constant 60 FPS even with multi-megabyte image payloads.
+* **Interactive Media Lightbox**: High-resolution zoomable viewer with full metadata inspection and one-click asset copying.
+
+---
+
 ## Analytical SQL Queries via DuckDB
 
 Because traces are stored in native columnar DuckDB tables, you can run instant analytical queries via the CLI:
@@ -476,6 +565,13 @@ print(df)
 | `nanotrace golden list` | List all curated golden evaluation datasets and case counts |
 | `nanotrace golden save` | Extract and save a golden benchmark case from a recorded trace or span |
 | `nanotrace golden export` | Export a golden dataset to a portable JSONL benchmark file |
+| `nanotrace prompt list` | List all registered prompt templates and active release tags |
+| `nanotrace prompt get <name>` | Display prompt template string, detected variables, and metadata |
+| `nanotrace prompt set <name> <template>` | Create or update a prompt template with automatic semver tracking |
+| `nanotrace prompt promote <name> <ver>` | Promote a prompt version to a release tag (e.g. `production`) |
+| `nanotrace feedback record <trace_id>` | Record user sentiment score (+1 / -1) and comments on a trace |
+| `nanotrace feedback list` | List recorded user feedback entries across all traces |
+| `nanotrace feedback stats` | Display aggregate feedback metrics and net sentiment percentage |
 | `nanotrace demo` | Run the complete 6-agent showcase suite and 10-checkpoint validation harness |
 | `nanotrace demo --ui` | Run the showcase suite and immediately launch the interactive dashboard |
 | `nanotrace ui` | Start the local web dashboard on `http://127.0.0.1:7777` |

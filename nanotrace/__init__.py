@@ -32,8 +32,20 @@ from nanotrace.guardrails.breakers import (
 from nanotrace.core.replay import ReplayEngine, ForkResult
 from nanotrace.eval.golden import GoldenCase, GoldenDatasetManager
 from nanotrace.eval.regression import RegressionEngine, RegressionRun, RegressionCaseResult
+from nanotrace.prompts import PromptTemplate, PromptRegistry
+from nanotrace.feedback import FeedbackEntry, FeedbackCollector
+from nanotrace.media import detect_media, sanitize_payload_for_display, scan_trace_multimodal_artifacts
+from nanotrace.exceptions import (
+    NanoTraceError,
+    CircuitBreakerTrip,
+    ReplayError,
+    PromptError,
+    FeedbackError,
+)
 
 _DEFAULT_TRACER: Optional[NanoTracer] = None
+_DEFAULT_PROMPT_REGISTRY: Optional[PromptRegistry] = None
+_DEFAULT_FEEDBACK_COLLECTOR: Optional[FeedbackCollector] = None
 
 
 def init(
@@ -159,6 +171,28 @@ def ingest(
     return spans
 
 
+def get_prompt_registry(db_path: Optional[str] = None) -> PromptRegistry:
+    """Retrieve or initialize the active PromptRegistry."""
+    global _DEFAULT_PROMPT_REGISTRY
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_PROMPT_REGISTRY is None or _DEFAULT_PROMPT_REGISTRY.db_path != target_path:
+        _DEFAULT_PROMPT_REGISTRY = PromptRegistry(db_path=target_path)
+    return _DEFAULT_PROMPT_REGISTRY
+
+
+def get_feedback_collector(db_path: Optional[str] = None) -> FeedbackCollector:
+    """Retrieve or initialize the active FeedbackCollector."""
+    global _DEFAULT_FEEDBACK_COLLECTOR
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_FEEDBACK_COLLECTOR is None or _DEFAULT_FEEDBACK_COLLECTOR.db_path != target_path:
+        _DEFAULT_FEEDBACK_COLLECTOR = FeedbackCollector(db_path=target_path)
+    return _DEFAULT_FEEDBACK_COLLECTOR
+
+
 __all__ = [
     "__version__",
     "init",
@@ -187,7 +221,23 @@ __all__ = [
     "TimeoutBreaker",
     "CircuitBreakerTrip",
     "ReplayError",
+    "PromptError",
+    "FeedbackError",
     "NanoTraceError",
     "ReplayEngine",
     "ForkResult",
+    "GoldenCase",
+    "GoldenDatasetManager",
+    "RegressionEngine",
+    "RegressionRun",
+    "RegressionCaseResult",
+    "PromptTemplate",
+    "PromptRegistry",
+    "FeedbackEntry",
+    "FeedbackCollector",
+    "get_prompt_registry",
+    "get_feedback_collector",
+    "detect_media",
+    "sanitize_payload_for_display",
+    "scan_trace_multimodal_artifacts",
 ]

@@ -21,6 +21,9 @@ from nanotrace.export.capsule import generate_trace_capsule
 from nanotrace.core.replay import ReplayEngine
 from nanotrace.eval.golden import GoldenDatasetManager, GoldenCase
 from nanotrace.eval.regression import RegressionEngine
+from nanotrace.prompts import PromptRegistry, PromptTemplate
+from nanotrace.feedback import FeedbackCollector, FeedbackEntry
+from nanotrace.media import detect_media, sanitize_payload_for_display, scan_trace_multimodal_artifacts
 
 
 class ForkRequest(BaseModel):
@@ -50,6 +53,30 @@ class RegressionRunRequest(BaseModel):
     candidate_model: Optional[str] = None
     baseline_model: Optional[str] = None
     fail_under: float = 0.80
+
+
+class SavePromptRequest(BaseModel):
+    name: str
+    template: str
+    version: str = "v1.0.0"
+    tags: Optional[List[str]] = None
+    author: str = "web_ui"
+    variables: Optional[List[str]] = None
+
+
+class PromotePromptRequest(BaseModel):
+    name: str
+    version: str
+    tag: str = "production"
+
+
+class RecordFeedbackRequest(BaseModel):
+    trace_id: str
+    score: float
+    comment: Optional[str] = None
+    span_id: Optional[str] = None
+    user_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -304,6 +331,127 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             return run.to_dict()
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    # ==========================================================================
+    # Phase 4: Prompt Studio API Routes
+    # ==========================================================================
+
+    @app.get("/api/prompts")
+    def list_prompts_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        reg = PromptRegistry(db_path=target_db)
+        return reg.list_prompts()
+
+    @app.get("/api/prompts/{name}")
+    def get_prompt_endpoint(
+        name: str,
+        tag: Optional[str] = None,
+        version: Optional[str] = None,
+        db: Optional[str] = None
+    ):
+        target_db = resolve_db_path(db)
+        reg = PromptRegistry(db_path=target_db)
+        try:
+            prompt = reg.get(name, tag=tag, version=version)
+            versions = reg.list_versions(name)
+            return {
+                "prompt": prompt.to_dict(),
+                "versions": [v.to_dict() for v in versions],
+            }
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.post("/api/prompts")
+    def save_prompt_endpoint(payload: SavePromptRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        reg = PromptRegistry(db_path=target_db)
+        try:
+            prompt = PromptTemplate(
+                name=payload.name,
+                template=payload.template,
+                version=payload.version,
+                tags=payload.tags or [],
+                author=payload.author,
+                variables=payload.variables or [],
+            )
+            saved = reg.save(prompt)
+            return {"status": "ok", "prompt": saved.to_dict()}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.post("/api/prompts/promote")
+    def promote_prompt_endpoint(payload: PromotePromptRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        reg = PromptRegistry(db_path=target_db)
+        try:
+            promoted = reg.promote(name=payload.name, version=payload.version, tag=payload.tag)
+            return {"status": "ok", "prompt": promoted.to_dict()}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.delete("/api/prompts/{name}")
+    def delete_prompt_endpoint(name: str, version: Optional[str] = None, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        reg = PromptRegistry(db_path=target_db)
+        deleted = reg.delete(name, version=version)
+        return {"status": "ok", "deleted": deleted}
+
+    # ==========================================================================
+    # Phase 4: Feedback Collector API Routes
+    # ==========================================================================
+
+    @app.post("/api/feedback")
+    def record_feedback_endpoint(payload: RecordFeedbackRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        collector = FeedbackCollector(db_path=target_db)
+        try:
+            entry = collector.record(
+                trace_id=payload.trace_id,
+                score=payload.score,
+                comment=payload.comment,
+                span_id=payload.span_id,
+                user_id=payload.user_id,
+                metadata=payload.metadata,
+            )
+            return {"status": "ok", "entry": entry.to_dict()}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.get("/api/feedback")
+    def get_feedback_endpoint(
+        trace_id: Optional[str] = None,
+        limit: int = 50,
+        db: Optional[str] = None
+    ):
+        target_db = resolve_db_path(db)
+        collector = FeedbackCollector(db_path=target_db)
+        if trace_id:
+            entries = collector.get_for_trace(trace_id)
+        else:
+            entries = collector.list_feedback(limit=limit)
+        return [e.to_dict() for e in entries]
+
+    @app.get("/api/feedback/stats")
+    def get_feedback_stats_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        collector = FeedbackCollector(db_path=target_db)
+        stats = collector.get_stats()
+        stats["recommended_golden_traces"] = collector.get_recommended_golden_traces()
+        return stats
+
+    # ==========================================================================
+    # Phase 4: Multi-Modal Media Gallery Route
+    # ==========================================================================
+
+    @app.get("/api/traces/{trace_id}/media")
+    def get_trace_media_endpoint(trace_id: str, db: Optional[str] = None):
+        sink = get_sink(db)
+        try:
+            spans = sink.query(f"SELECT * FROM spans WHERE trace_id = '{trace_id}' ORDER BY start_time_ns ASC")
+            gallery = scan_trace_multimodal_artifacts(spans)
+            return {"trace_id": trace_id, "media_count": len(gallery), "gallery": gallery}
+        finally:
+            sink.close()
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():

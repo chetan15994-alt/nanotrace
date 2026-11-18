@@ -409,7 +409,120 @@ nanotrace golden save --span-id <span_id> --dataset prod_gold --name "Tax Edge C
 
 ---
 
-## 12. Command-Line Reference
+## 12. NanoPrompt Studio & Versioned Registry (`nanotrace.prompts`)
+
+The **NanoPrompt Studio** unifies prompt engineering, semver version control, parameter substitution, and regression benchmarking into a single embedded workspace.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        NANOPROMPT STUDIO & REGISTRY                    │
+├────────────────────────────────┬───────────────────────────────────────┤
+│ PROMPT REGISTRY (DUCKDB)       │ PROMPT EDITOR & SANDBOX               │
+│                                │                                       │
+│ 📁 financial_forecaster        │ Title: financial_forecaster (v1.1.0)  │
+│    v1.1.0 [PRODUCTION]         │ Tags: [production]   Author: alice    │
+│    {{company}} {{quarter}}     │                                       │
+│    {{metrics}} {{macro}}       │ Template:                             │
+│                                │ "Executive analysis for {{company}}..."│
+│ 📁 legal_risk_evaluator        │                                       │
+│    v1.0.0 [PRODUCTION]         │ ⚡️ LIVE VARIABLE SANDBOX               │
+│    {{jurisdiction}} {{risk}}   │ [company: Acme Corp] [quarter: Q3]    │
+│                                │ ➔ Compiled Output:                    │
+│                                │ "Executive analysis for Acme Corp..." │
+│                                │                                       │
+│                                │ [🌟 Promote] [⚡️ Test in Regression]   │
+└────────────────────────────────┴───────────────────────────────────────┘
+```
+
+### Key Capabilities:
+* **Microsecond In-Memory Cache**: Cached prompt template lookups take under `0.1 µs` (< 100 ns), ensuring prompt templating adds zero latency to inference loops.
+* **Automatic Variable Extraction**: Automatically discovers and indexes all `{{variable_name}}` placeholders inside prompt templates.
+* **Strict & Flexible Compilation**: Compile templates with parameter dictionaries (`template.compile(**params)`), with optional strict schema validation.
+* **Semver & Tag Promotion**: Version templates (`1.0.0`, `1.1.0`) and promote specific versions to environment tags (`production`, `staging`, `dev`). Enforces tag exclusivity to avoid ambiguous states.
+* **1-Click Test in Regression Matrix**: Send active prompt templates directly into the Prompt Regression Matrix to benchmark against golden cases.
+
+### Programmatic Usage:
+```python
+from nanotrace.prompts import PromptRegistry, PromptTemplate
+
+reg = PromptRegistry(db_path="./.traces/nanotrace.duckdb")
+
+# Save a versioned template
+template = PromptTemplate(
+    name="analyst_briefing",
+    template="Summarize risk factors for {{client}} in sector {{sector}}.",
+    version="1.0.0",
+    tags=["staging"],
+)
+reg.save(template)
+
+# Promote to production
+reg.promote("analyst_briefing", version="1.0.0", tag="production")
+
+# Fetch and compile at runtime
+prompt = reg.get("analyst_briefing", tag="production")
+rendered = prompt.compile(client="Global Logistics Ltd", sector="Maritime Shipping")
+```
+
+---
+
+## 13. NanoFeedback Collector & End-User Sentiment Loop (`nanotrace.feedback`)
+
+Connect end-user sentiment (+1 / -1) directly to runtime traces and automatically mine top-performing interactions for golden test suites.
+
+```
+[ End User / App ] ──(+1 / -1 Feedback)──▶ [ NanoFeedback Collector ]
+                                                     │
+                                                     ├─ Net Sentiment % Metric
+                                                     ├─ Feedback DuckDB Table
+                                                     └─ 🌟 "Add to Golden" Banner
+                                                           │
+                                                           ▼
+                                                [ Curated Golden Cases ]
+```
+
+### Key Capabilities:
+* **Embedded Sentiment Aggregation**: Calculates net sentiment percentage `(+1 count - -1 count) / total count * 100` and displays it in the real-time dashboard metrics bar.
+* **Trace & Span Association**: Attach feedback to overall traces or specific tool/LLM spans, including qualitative commentary and user IDs.
+* **Golden Trace Recommendation**: Traces receiving positive sentiment (+1.0) automatically display a prominent `🌟 Recommended for Golden Benchmark Suite` banner with a one-click **`+ Add to Golden`** button.
+* **Zero-Dependency JS Client (`nanotrace-feedback.js`)**: An embeddable `< 2KB` vanilla JavaScript library for web applications.
+
+### CLI Feedback Commands:
+```bash
+# Record sentiment directly from terminal
+nanotrace feedback record <trace_id> --score 1.0 --comment "Accurate extraction"
+
+# View summary statistics & net sentiment %
+nanotrace feedback stats
+
+# List recorded feedback entries
+nanotrace feedback list
+```
+
+---
+
+## 14. Multi-Modal Payload Inspector & Lightbox (`nanotrace.media`)
+
+Modern agent workflows frequently process multi-modal inputs: charts, receipts, audio transcripts, and PDFs. NanoTrace provides zero-lag multi-modal inspection:
+
+```
+[ Span Payload with 500KB Base64 Image ]
+               │
+               ▼
+   [ Sanitization Engine ]
+               │
+               ├─ Text Tab: Replaced with [🖼️ Embedded Media: image/png (500 KB)]
+               └─ Media & Visuals Tab: Rendered Thumbnail Card + Lightbox Zoom
+```
+
+### Key Capabilities:
+* **Base64 Sanitization**: Scans prompts and completions for `data:image/*`, `data:audio/*`, and `data:application/pdf` URIs. Large blobs are replaced in text views with semantic summary pills, preventing browser memory leaks and DOM freezing.
+* **Multi-Modal Gallery Tab**: Dedicated `Media & Visuals` tab inside the Span Drawer displays high-fidelity thumbnails for all detected media.
+* **Interactive Lightbox Modal**: Click any thumbnail to expand into an edge-to-edge lightbox with zoom controls, metadata inspection, and direct URL copy.
+
+---
+
+## 15. Command-Line Reference
 
 | Command | Action | Key Options |
 |---|---|---|
@@ -419,6 +532,13 @@ nanotrace golden save --span-id <span_id> --dataset prod_gold --name "Tax Edge C
 | `nanotrace golden list` | List all curated golden evaluation datasets and case counts | `--db <path>` |
 | `nanotrace golden save` | Extract and save a golden benchmark case from a recorded trace or span | `--span-id <id>`, `--dataset <name>`, `--name <title>` |
 | `nanotrace golden export` | Export a golden dataset to a portable JSONL benchmark file | `--dataset <name>`, `--output <file.jsonl>` |
+| `nanotrace prompt list` | List all registered prompt templates and release tags | `--db <path>` |
+| `nanotrace prompt get <name>` | Display prompt template string and detected variables | `--tag <tag>`, `--version <ver>`, `--db <path>` |
+| `nanotrace prompt set <name>` | Create or update a versioned prompt template | `<template>`, `--version <ver>`, `--tag <tag>`, `--author <str>` |
+| `nanotrace prompt promote <name> <ver>` | Promote a prompt version to a release tag (e.g. `production`) | `--tag <tag>`, `--db <path>` |
+| `nanotrace feedback record <id>` | Record user sentiment score (+1 / -1) and comment on a trace | `--score <float>`, `--comment <str>`, `--user-id <str>` |
+| `nanotrace feedback list` | List all recorded feedback entries | `--trace-id <id>`, `--db <path>` |
+| `nanotrace feedback stats` | Display aggregate feedback metrics and net sentiment % | `--db <path>` |
 | `nanotrace ui` | Start the local interactive dashboard | `--port 7777`, `--host 127.0.0.1`, `--db <path>` |
 | `nanotrace demo` | Run all 6 showcase agents + validator | `--ui` (auto-launch browser), `--port 7777` |
 | `nanotrace stats` | Print aggregate metrics table | `--db <path>` |
@@ -429,7 +549,7 @@ nanotrace golden save --span-id <span_id> --dataset prod_gold --name "Tax Edge C
 
 ---
 
-## 13. Quick Verification Test
+## 16. Quick Verification Test
 
 To verify your installation and generate a complete sample database of traces across all 6 agent patterns:
 

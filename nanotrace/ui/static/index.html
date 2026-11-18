@@ -61,6 +61,18 @@
             <span>Regression Matrix</span>
             <span style="background:var(--color-warning); color:#1e293b; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px;">A/B DIFF</span>
           </button>
+          <!-- Phase 4: Prompt Studio Tab -->
+          <button class="nav-tab" id="tabPromptBtn" onclick="switchView('prompt')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Prompt Studio</span>
+            <span style="background:var(--accent-primary); color:#ffffff; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px;">STUDIO</span>
+          </button>
         </nav>
       </div>
 
@@ -128,6 +140,10 @@
       <div class="metric-cell">
         <span class="cell-label">Error Rate</span>
         <span class="cell-value" id="valErrorRate">0.0%</span>
+      </div>
+      <div class="metric-cell">
+        <span class="cell-label">Net Sentiment</span>
+        <span class="cell-value" id="valNetSentiment" style="color:var(--color-success)">--</span>
       </div>
     </section>
 
@@ -251,6 +267,12 @@
               <h4 id="drawerSpanName">Span Inspection</h4>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
+              <!-- Phase 4: Feedback Buttons -->
+              <div class="feedback-group" style="display:flex; align-items:center; gap:4px; margin-right:4px;">
+                <button class="btn-fb" id="btnFbUp" onclick="submitSpanFeedback(1.0)" title="Helpful / High Quality (Thumbs Up)">👍</button>
+                <button class="btn-fb" id="btnFbDown" onclick="submitSpanFeedback(-1.0)" title="Hallucination / Low Quality (Thumbs Down)">👎</button>
+                <span id="spanFeedbackStatus" style="font-size:0.7rem; font-weight:700; display:none;"></span>
+              </div>
               <button class="btn btn-replay-inline" onclick="openTimeTravelModal(selectedSpanId)" title="Rewind & fork this execution node">
                 <span>⏱️ Fork &amp; Replay</span>
               </button>
@@ -261,11 +283,18 @@
             </div>
           </div>
 
+          <!-- Phase 4: Golden Candidate Recommendation Banner -->
+          <div id="goldenRecommendBanner" style="display:none; background:rgba(234, 179, 8, 0.12); border-bottom:1px solid rgba(234, 179, 8, 0.3); padding:8px 16px; font-size:0.75rem; color:#eab308; display:flex; justify-content:space-between; align-items:center;">
+            <span>🌟 <strong>User-Verified (+1)</strong>: Recommended for Golden Benchmark Suite</span>
+            <button onclick="saveSelectedSpanAsGoldenCase()" style="background:#eab308; color:#1e293b; border:none; border-radius:4px; font-weight:700; font-size:0.7rem; padding:2px 8px; cursor:pointer;">+ Add to Golden</button>
+          </div>
+
           <div class="drawer-body">
             <!-- Drawer Tabs -->
             <div class="drawer-tabs">
               <button class="drawer-tab active" onclick="switchDrawerTab('overview')">Overview</button>
               <button class="drawer-tab" onclick="switchDrawerTab('payloads')">Input & Output</button>
+              <button class="drawer-tab" onclick="switchDrawerTab('media')">Media &amp; Visuals <span id="drawerMediaBadge" class="media-count-pill" style="display:none;">0</span></button>
               <button class="drawer-tab" onclick="switchDrawerTab('otel')">OTel Attributes</button>
             </div>
 
@@ -286,7 +315,16 @@
               </div>
             </div>
 
-            <!-- Tab 3: OTel Attributes -->
+            <!-- Tab 3: Media & Visuals (Phase 4 Multi-Modal Inspector) -->
+            <div class="drawer-tab-content" id="dtab-media">
+              <div id="drawerMediaGallery" class="media-gallery-grid">
+                <div style="color:var(--text-muted); font-size:0.8rem; padding:16px; text-align:center;">
+                  No visual or audio media detected in this execution span.
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 4: OTel Attributes -->
             <div class="drawer-tab-content" id="dtab-otel">
               <div class="code-panel">
                 <div class="code-panel-header">All OpenTelemetry GenAI Attributes (JSON)</div>
@@ -1890,6 +1928,127 @@ diagnostics = dataset.run_heuristics()</code>
         </section>
       </div>
     </main>
+
+    <!-- VIEW 4: Prompt Studio (Phase 4) -->
+    <main class="view-container" id="viewPromptStudio">
+      <div class="prompt-studio-layout">
+        <!-- Sidebar: Prompt Registry List -->
+        <aside class="prompt-sidebar">
+          <div class="sidebar-header" style="padding:14px 16px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700; font-size:0.92rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+              <span>📝 Prompt Registry</span>
+              <span id="promptRegistryCountBadge" class="count-badge">0 Prompts</span>
+            </div>
+            <button class="btn btn-primary" onclick="createNewPromptForm()" style="font-size:0.75rem; padding:4px 8px;">+ New</button>
+          </div>
+
+          <div style="padding:10px 12px; border-bottom:1px solid var(--border-color);">
+            <input type="text" id="promptSearchInput" class="form-input" placeholder="Search prompts..." oninput="filterPromptsList(this.value)" style="font-size:0.8rem; padding:6px 10px; width:100%;">
+          </div>
+
+          <div class="prompt-list-scroll" id="promptListContainer">
+            <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.8rem;">
+              Loading prompts...
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Studio: Editor, Variables & Sandbox -->
+        <section class="prompt-main">
+          <div class="prompt-main-header">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <h3 id="studioPromptTitle" style="font-size:1.15rem; font-weight:700; color:var(--text-primary); margin:0;">Select or Create a Prompt</h3>
+                <span id="studioVersionBadge" class="status-badge-improved" style="font-size:0.72rem;">v1.0.0</span>
+                <span id="studioTagBadges" style="display:flex; gap:4px;"></span>
+              </div>
+              <p style="font-size:0.78rem; color:var(--text-muted); margin:4px 0 0 0;" id="studioPromptSub">
+                Edit template with {{variable}} placeholders, manage semver releases, and promote tags.
+              </p>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn btn-secondary" onclick="sendPromptToRegressionMatrix()" title="Populate candidate prompt in Regression Matrix">
+                <span>⚡ Test in Regression Matrix</span>
+              </button>
+              <button class="btn btn-secondary" style="border-color:#eab308; color:#eab308;" onclick="promoteCurrentPrompt('production')" title="Promote to production tag">
+                <span>🌟 Promote to Production</span>
+              </button>
+              <button class="btn btn-primary" onclick="saveCurrentPrompt()" style="padding:6px 14px;">
+                <span>💾 Save Version</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Version & Metadata Bar -->
+          <div style="display:flex; gap:12px; margin-bottom:14px; background:var(--bg-surface); padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; align-items:center;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">Version:</label>
+              <select id="studioVersionSelect" class="form-select" onchange="onStudioVersionChange(this.value)" style="font-size:0.75rem; padding:3px 8px;">
+                <option value="v1.0.0">v1.0.0 (latest)</option>
+              </select>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex:1;">
+              <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">Tags (comma-separated):</label>
+              <input type="text" id="studioTagsInput" class="form-input" placeholder="e.g. production, finance, q2" style="font-size:0.75rem; padding:4px 8px; flex:1;">
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">Author:</label>
+              <input type="text" id="studioAuthorInput" class="form-input" value="engineer" style="font-size:0.75rem; padding:4px 8px; width:100px;">
+            </div>
+          </div>
+
+          <!-- Template Editor -->
+          <div class="prompt-editor-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-primary);">Template String</label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:0.72rem; color:var(--text-muted);">Detected Variables:</span>
+                <div id="promptVariablePills" style="display:inline-flex; gap:4px; flex-wrap:wrap;"></div>
+              </div>
+            </div>
+            <textarea id="promptTemplateTextarea" class="prompt-textarea" rows="7" placeholder="Enter prompt instructions. Use {{variable_name}} to declare parameter placeholders..." oninput="onTemplateInputChange(this.value)"></textarea>
+          </div>
+
+          <!-- Test & Compile Sandbox -->
+          <div class="prompt-sandbox-card" style="margin-top:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <span style="font-weight:700; font-size:0.82rem; color:var(--text-primary);">🧪 Test &amp; Compile Sandbox</span>
+              <span style="font-size:0.72rem; color:var(--text-muted);">Live variable substitution preview</span>
+            </div>
+            <div class="sandbox-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div>
+                <label style="font-size:0.74rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">Parameter Values</label>
+                <div id="sandboxVariableInputs" style="display:flex; flex-direction:column; gap:8px;">
+                  <span style="color:var(--text-muted); font-size:0.75rem;">No variables detected in template.</span>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:0.74rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">Compiled Preview Output</label>
+                <pre id="sandboxCompiledOutput" class="compiled-output-pre">(enter template text above)</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Multi-Modal Lightbox Modal (Phase 4) -->
+  <div class="lightbox-modal-overlay" id="mediaLightboxModal" style="display:none;" onclick="closeMediaLightbox(event)">
+    <div class="lightbox-modal-content" onclick="event.stopPropagation()">
+      <div class="lightbox-header">
+        <span id="lightboxTitle" style="font-weight:700; font-size:0.85rem;">Multi-Modal Visual Artifact</span>
+        <button class="btn-close" onclick="closeMediaLightbox(null)">✕</button>
+      </div>
+      <div class="lightbox-body">
+        <img id="lightboxImage" src="" alt="Artifact View" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:6px;">
+      </div>
+      <div class="lightbox-footer" style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-muted);">
+        <span id="lightboxMeta">image/png • 0 KB</span>
+        <button class="btn btn-secondary" onclick="copyLightboxUri()" style="font-size:0.72rem; padding:3px 8px;">Copy Data URI / URL</button>
+      </div>
+    </div>
   </div>
 
   <!-- Time-Travel Agent Debugger & Replay Playground Modal -->
@@ -1971,6 +2130,7 @@ diagnostics = dataset.run_heuristics()</code>
     </div>
   </div>
 
+  <script src="/static/nanotrace-feedback.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -84,12 +84,14 @@ function switchView(viewName) {
   const tabTracesBtn = document.getElementById("tabTracesBtn");
   const tabGuideBtn = document.getElementById("tabGuideBtn");
   const tabRegressionBtn = document.getElementById("tabRegressionBtn");
+  const tabPromptBtn = document.getElementById("tabPromptBtn");
   const viewTraces = document.getElementById("viewTraces");
   const viewGuide = document.getElementById("viewGuide");
   const viewRegression = document.getElementById("viewRegression");
+  const viewPromptStudio = document.getElementById("viewPromptStudio");
 
-  [tabTracesBtn, tabGuideBtn, tabRegressionBtn].forEach(b => b && b.classList.remove("active"));
-  [viewTraces, viewGuide, viewRegression].forEach(v => v && v.classList.remove("active"));
+  [tabTracesBtn, tabGuideBtn, tabRegressionBtn, tabPromptBtn].forEach(b => b && b.classList.remove("active"));
+  [viewTraces, viewGuide, viewRegression, viewPromptStudio].forEach(v => v && v.classList.remove("active"));
 
   if (viewName === "traces") {
     if (tabTracesBtn) tabTracesBtn.classList.add("active");
@@ -102,6 +104,10 @@ function switchView(viewName) {
     if (viewRegression) viewRegression.classList.add("active");
     loadGoldenDatasets();
     loadRegressionRuns();
+  } else if (viewName === "prompt") {
+    if (tabPromptBtn) tabPromptBtn.classList.add("active");
+    if (viewPromptStudio) viewPromptStudio.classList.add("active");
+    loadPromptStudio();
   }
 }
 
@@ -110,7 +116,7 @@ function switchView(viewName) {
 // ==========================================================================
 
 async function loadDashboard() {
-  await Promise.all([loadStats(), loadTraces(), loadShieldStats()]);
+  await Promise.all([loadStats(), loadTraces(), loadShieldStats(), loadFeedbackStats()]);
 }
 
 async function loadShieldStats() {
@@ -375,7 +381,7 @@ function renderBusinessLens(spans) {
         <span class="biz-tag biz-tag-user">👤 User Objective / Trigger</span>
         <span style="font-size:0.75rem; color:var(--text-muted);">Root Prompt</span>
       </div>
-      <div class="biz-body">${escapeHtml(initialPrompt)}</div>
+      <div class="biz-body">${escapeHtml(sanitizeBase64ForDisplay(initialPrompt))}</div>
     </div>
   `);
 
@@ -430,7 +436,7 @@ function renderBusinessLens(spans) {
               <span class="biz-chip">Inspect ↗</span>
             </div>
           </div>
-          <div class="biz-body">${escapeHtml(bodyText)}</div>
+          <div class="biz-body">${escapeHtml(sanitizeBase64ForDisplay(bodyText))}</div>
         </div>
       `);
     } else if (isChat) {
@@ -444,7 +450,7 @@ function renderBusinessLens(spans) {
               <span class="biz-chip">$${Number(s.gen_ai_cost_usd || 0).toFixed(5)}</span>
             </div>
           </div>
-          <div class="biz-body">${escapeHtml(bodyText)}</div>
+          <div class="biz-body">${escapeHtml(sanitizeBase64ForDisplay(bodyText))}</div>
         </div>
       `);
     }
@@ -464,7 +470,7 @@ function renderBusinessLens(spans) {
           <span class="biz-tag biz-tag-output">🎯 Final Agent Deliverable</span>
           <span style="font-size:0.75rem; color:var(--color-success); font-weight:700;">✓ Completed in ${totalMs} ms</span>
         </div>
-        <div class="biz-body resolution">${escapeHtml(finalCompletion)}</div>
+        <div class="biz-body resolution">${escapeHtml(sanitizeBase64ForDisplay(finalCompletion))}</div>
       </div>
     `);
   }
@@ -612,11 +618,44 @@ function openDrawer(spanId) {
   // Payloads tab
   let promptText = span.prompt_payload;
   try { promptText = JSON.stringify(JSON.parse(span.prompt_payload), null, 2); } catch (_) {}
-  document.getElementById("drawerPrompt").innerText = promptText || "(No input recorded)";
+  document.getElementById("drawerPrompt").innerText = sanitizeBase64ForDisplay(promptText) || "(No input recorded)";
 
   let compText = span.completion_payload;
   try { compText = JSON.stringify(JSON.parse(span.completion_payload), null, 2); } catch (_) {}
-  document.getElementById("drawerCompletion").innerText = compText || "(No completion recorded)";
+  document.getElementById("drawerCompletion").innerText = sanitizeBase64ForDisplay(compText) || "(No completion recorded)";
+
+  // Phase 4: Multi-Modal Media Detection in Drawer
+  const pMedia = extractClientMedia(span.prompt_payload);
+  const cMedia = extractClientMedia(span.completion_payload);
+  const allMedia = [...pMedia, ...cMedia];
+  const gallery = document.getElementById("drawerMediaGallery");
+  const mediaBadge = document.getElementById("drawerMediaBadge");
+
+  if (gallery) {
+    if (allMedia.length > 0) {
+      if (mediaBadge) {
+        mediaBadge.innerText = allMedia.length;
+        mediaBadge.style.display = "inline";
+      }
+      gallery.innerHTML = allMedia.map((m, idx) => `
+        <div class="media-card" onclick="openMediaLightbox('${encodeURIComponent(m.url)}', '${escapeHtml(m.label)}', '${m.mime}')">
+          ${m.type === 'image' 
+            ? `<img src="${m.url}" class="media-thumb" alt="Artifact">` 
+            : `<div class="media-thumb" style="display:flex;align-items:center;justify-content:center;background:#1e293b;font-size:1.8rem;">🎵</div>`}
+          <div class="media-card-info">
+            <span class="media-card-label">${escapeHtml(m.label)}</span>
+            <span class="media-card-sub">${m.type.toUpperCase()} • Click to Zoom</span>
+          </div>
+        </div>
+      `).join("");
+    } else {
+      if (mediaBadge) mediaBadge.style.display = "none";
+      gallery.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding:20px; text-align:center;">No visual or audio media detected in this execution span.</div>`;
+    }
+  }
+
+  // Phase 4: Feedback state check
+  checkSpanFeedbackState(span.trace_id, span.span_id);
 
   // OTel JSON tab
   let attrsText = span.attributes_json;
@@ -644,8 +683,11 @@ function switchDrawerTab(tabName) {
   } else if (tabName === "payloads") {
     document.querySelectorAll(".drawer-tab")[1].classList.add("active");
     document.getElementById("dtab-payloads").classList.add("active");
-  } else if (tabName === "otel") {
+  } else if (tabName === "media") {
     document.querySelectorAll(".drawer-tab")[2].classList.add("active");
+    document.getElementById("dtab-media").classList.add("active");
+  } else if (tabName === "otel") {
+    document.querySelectorAll(".drawer-tab")[3].classList.add("active");
     document.getElementById("dtab-otel").classList.add("active");
   }
 }
@@ -1200,5 +1242,444 @@ async function loadAndDisplayRun(runId) {
     displayRegressionRun(run);
   } catch (err) {
     alert(`Failed to load regression run: ${err.message}`);
+  }
+}
+
+// ==========================================================================
+// Phase 4: Multi-Modal Utilities & Lightbox
+// ==========================================================================
+
+let activeLightboxUri = "";
+
+function extractClientMedia(text) {
+  if (!text || typeof text !== "string") return [];
+  const items = [];
+  const dataUriRegex = /(data:(image\/[a-zA-Z0-9\+\-\.]+|audio\/[a-zA-Z0-9\+\-\.]+|application\/pdf);base64,([A-Za-z0-9+/=]+))/gi;
+  let match;
+  while ((match = dataUriRegex.exec(text)) !== null) {
+    const mime = match[2].toLowerCase();
+    const size = Math.round(match[3].length * 0.75);
+    items.push({
+      type: mime.startsWith("image/") ? "image" : (mime.startsWith("audio/") ? "audio" : "document"),
+      mime: mime,
+      url: match[1],
+      size: size,
+      label: `${mime.split("/")[1].toUpperCase()} (${(size / 1024).toFixed(1)} KB)`,
+    });
+  }
+  const urlRegex = /(https?:\/\/[^\s"\'<>]+\.(?:png|jpg|jpeg|webp|gif|svg)(?:\?[^\s"\'<>]*)?)/gi;
+  while ((match = urlRegex.exec(text)) !== null) {
+    if (!match[1].startsWith("data:")) {
+      const ext = match[1].split("?")[0].split(".").pop().toLowerCase();
+      items.push({
+        type: "image",
+        mime: "image/" + ext,
+        url: match[1],
+        size: 0,
+        label: `Remote ${ext.toUpperCase()}`,
+      });
+    }
+  }
+  return items;
+}
+
+function sanitizeBase64ForDisplay(text) {
+  if (!text || typeof text !== "string") return "";
+  return text.replace(/(data:(image\/[a-zA-Z0-9\+\-\.]+|audio\/[a-zA-Z0-9\+\-\.]+|application\/pdf);base64,([A-Za-z0-9+/=]{100,}))/gi, function(match, full, mime, b64) {
+    const sizeKb = ((b64.length * 0.75) / 1024).toFixed(1);
+    const icon = mime.includes("image") ? "🖼️" : (mime.includes("audio") ? "🎵" : "📄");
+    return `[${icon} Embedded Media: ${mime} (${sizeKb} KB)]`;
+  });
+}
+
+function openMediaLightbox(urlEncoded, label, mime) {
+  const modal = document.getElementById("mediaLightboxModal");
+  const img = document.getElementById("lightboxImage");
+  const title = document.getElementById("lightboxTitle");
+  const meta = document.getElementById("lightboxMeta");
+  if (!modal || !img) return;
+
+  activeLightboxUri = decodeURIComponent(urlEncoded);
+  img.src = activeLightboxUri;
+  if (title) title.innerText = label || "Visual Artifact";
+  if (meta) meta.innerText = mime || "Media Preview";
+  modal.style.display = "flex";
+}
+
+function closeMediaLightbox(e) {
+  const modal = document.getElementById("mediaLightboxModal");
+  if (modal) modal.style.display = "none";
+}
+
+function copyLightboxUri() {
+  if (!activeLightboxUri) return;
+  navigator.clipboard.writeText(activeLightboxUri).then(() => {
+    alert("Copied media URI/URL to clipboard!");
+  }).catch(() => {
+    alert("Clipboard copy failed.");
+  });
+}
+
+// ==========================================================================
+// Phase 4: Feedback Collector & Trace Association
+// ==========================================================================
+
+async function submitSpanFeedback(score) {
+  if (!activeTraceId) return;
+  const statusSpan = document.getElementById("spanFeedbackStatus");
+  const banner = document.getElementById("goldenRecommendBanner");
+
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trace_id: activeTraceId,
+        span_id: selectedSpanId,
+        score: score,
+        comment: score > 0 ? "Marked helpful in dashboard" : "Flagged in dashboard",
+      }),
+    });
+    if (res.ok) {
+      if (statusSpan) {
+        statusSpan.innerText = score > 0 ? "✓ Liked" : "✓ Flagged";
+        statusSpan.style.color = score > 0 ? "var(--color-success)" : "var(--color-error)";
+        statusSpan.style.display = "inline";
+      }
+      if (banner && score > 0) {
+        banner.style.display = "flex";
+      }
+      loadFeedbackStats();
+    }
+  } catch (err) {
+    console.error("Failed submitting feedback:", err);
+  }
+}
+
+async function checkSpanFeedbackState(traceId, spanId) {
+  const statusSpan = document.getElementById("spanFeedbackStatus");
+  const banner = document.getElementById("goldenRecommendBanner");
+  if (statusSpan) statusSpan.style.display = "none";
+  if (banner) banner.style.display = "none";
+
+  try {
+    const res = await fetch(`/api/feedback?trace_id=${encodeURIComponent(traceId)}`);
+    const entries = await res.json();
+    if (entries.length > 0) {
+      const latest = entries[0];
+      if (statusSpan) {
+        statusSpan.innerText = latest.score > 0 ? "👍 Liked" : "👎 Flagged";
+        statusSpan.style.color = latest.score > 0 ? "var(--color-success)" : "var(--color-error)";
+        statusSpan.style.display = "inline";
+      }
+      if (banner && latest.score > 0) {
+        banner.style.display = "flex";
+      }
+    }
+  } catch (_) {}
+}
+
+async function loadFeedbackStats() {
+  const sentEl = document.getElementById("valNetSentiment");
+  if (!sentEl) return;
+  try {
+    const res = await fetch("/api/feedback/stats");
+    const data = await res.json();
+    if (data.total_feedback > 0) {
+      sentEl.innerText = `${data.net_sentiment_pct > 0 ? '+' : ''}${data.net_sentiment_pct}%`;
+      sentEl.style.color = data.net_sentiment_pct >= 0 ? "var(--color-success)" : "var(--color-error)";
+    } else {
+      sentEl.innerText = "--";
+    }
+  } catch (_) {}
+}
+
+// ==========================================================================
+// Phase 4: Prompt Studio & Registry Management
+// ==========================================================================
+
+let activePromptName = "";
+let activePromptData = null;
+let allPromptsCache = [];
+
+async function loadPromptStudio() {
+  try {
+    const url = currentDb ? `/api/prompts?db=${encodeURIComponent(currentDb)}` : "/api/prompts";
+    const res = await fetch(url);
+    const prompts = await res.json();
+    allPromptsCache = prompts;
+
+    const countBadge = document.getElementById("promptRegistryCountBadge");
+    if (countBadge) countBadge.innerText = `${prompts.length} Prompt${prompts.length === 1 ? "" : "s"}`;
+
+    renderPromptsList(prompts);
+
+    if (prompts.length > 0 && !activePromptName) {
+      selectPrompt(prompts[0].name);
+    } else if (prompts.length === 0) {
+      createNewPromptForm();
+    }
+  } catch (err) {
+    console.error("Failed loading prompts:", err);
+  }
+}
+
+function renderPromptsList(prompts) {
+  const container = document.getElementById("promptListContainer");
+  if (!container) return;
+
+  if (prompts.length === 0) {
+    container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.8rem;">No prompts registered yet.<br>Click <strong>+ New</strong> to create one.</div>`;
+    return;
+  }
+
+  container.innerHTML = prompts.map(p => {
+    const isProd = p.active_tags && p.active_tags.includes("production");
+    const isStaging = p.active_tags && p.active_tags.includes("staging");
+    return `
+      <div class="prompt-card ${p.name === activePromptName ? 'active' : ''}" onclick="selectPrompt('${escapeHtml(p.name)}')">
+        <div class="prompt-card-top">
+          <span class="prompt-card-name">${escapeHtml(p.name)}</span>
+          <span class="tag-badge ${isProd ? 'prod' : (isStaging ? 'staging' : '')}">${p.latest_version}</span>
+        </div>
+        <div class="prompt-card-preview">${escapeHtml(p.template_preview || '(empty template)')}</div>
+        <div class="prompt-card-tags">
+          ${(p.active_tags || []).map(t => `<span class="tag-badge ${t === 'production' ? 'prod' : (t === 'staging' ? 'staging' : '')}">${escapeHtml(t)}</span>`).join("")}
+          ${(p.variables || []).map(v => `<span class="var-pill">{{${escapeHtml(v)}}}</span>`).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function filterPromptsList(query) {
+  const q = (query || "").toLowerCase();
+  const filtered = allPromptsCache.filter(p => 
+    p.name.toLowerCase().includes(q) || 
+    (p.template_preview && p.template_preview.toLowerCase().includes(q)) ||
+    (p.active_tags && p.active_tags.some(t => t.toLowerCase().includes(q)))
+  );
+  renderPromptsList(filtered);
+}
+
+async function selectPrompt(name) {
+  activePromptName = name;
+  renderPromptsList(allPromptsCache);
+
+  try {
+    const url = currentDb ? `/api/prompts/${encodeURIComponent(name)}?db=${encodeURIComponent(currentDb)}` : `/api/prompts/${encodeURIComponent(name)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    activePromptData = data;
+
+    const p = data.prompt;
+    document.getElementById("studioPromptTitle").innerText = p.name;
+    document.getElementById("studioVersionBadge").innerText = p.version;
+    document.getElementById("promptTemplateTextarea").value = p.template;
+    document.getElementById("studioTagsInput").value = (p.tags || []).join(", ");
+    document.getElementById("studioAuthorInput").value = p.author || "engineer";
+
+    // Version select dropdown
+    const vSelect = document.getElementById("studioVersionSelect");
+    if (vSelect && data.versions) {
+      vSelect.innerHTML = data.versions.map(v => `
+        <option value="${v.version}" ${v.version === p.version ? 'selected' : ''}>
+          ${v.version} ${v.tags.length > 0 ? `[${v.tags.join(',')}]` : ''}
+        </option>
+      `).join("");
+    }
+
+    // Tags strip
+    const tagStrip = document.getElementById("studioTagBadges");
+    if (tagStrip) {
+      tagStrip.innerHTML = (p.tags || []).map(t => `
+        <span class="tag-badge ${t === 'production' ? 'prod' : (t === 'staging' ? 'staging' : '')}">${escapeHtml(t)}</span>
+      `).join("");
+    }
+
+    onTemplateInputChange(p.template);
+  } catch (err) {
+    console.error("Failed loading prompt details:", err);
+  }
+}
+
+function createNewPromptForm() {
+  activePromptName = "new_prompt";
+  document.getElementById("studioPromptTitle").innerText = "Create New Prompt";
+  document.getElementById("studioVersionBadge").innerText = "v1.0.0";
+  document.getElementById("studioVersionSelect").innerHTML = `<option value="v1.0.0">v1.0.0</option>`;
+  document.getElementById("promptTemplateTextarea").value = "You are an expert AI assistant. Please assist with {{task}} for {{user}}.";
+  document.getElementById("studioTagsInput").value = "dev";
+  document.getElementById("studioAuthorInput").value = "engineer";
+  document.getElementById("studioTagBadges").innerHTML = `<span class="tag-badge">dev</span>`;
+
+  onTemplateInputChange(document.getElementById("promptTemplateTextarea").value);
+}
+
+function onStudioVersionChange(version) {
+  if (!activePromptData || !activePromptData.versions) return;
+  const target = activePromptData.versions.find(v => v.version === version);
+  if (!target) return;
+
+  document.getElementById("studioVersionBadge").innerText = target.version;
+  document.getElementById("promptTemplateTextarea").value = target.template;
+  document.getElementById("studioTagsInput").value = (target.tags || []).join(", ");
+  document.getElementById("studioAuthorInput").value = target.author || "engineer";
+
+  const tagStrip = document.getElementById("studioTagBadges");
+  if (tagStrip) {
+    tagStrip.innerHTML = (target.tags || []).map(t => `
+      <span class="tag-badge ${t === 'production' ? 'prod' : (t === 'staging' ? 'staging' : '')}">${escapeHtml(t)}</span>
+    `).join("");
+  }
+
+  onTemplateInputChange(target.template);
+}
+
+function onTemplateInputChange(templateStr) {
+  const varsFound = [];
+  const regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+  let m;
+  while ((m = regex.exec(templateStr)) !== null) {
+    if (!varsFound.includes(m[1])) varsFound.push(m[1]);
+  }
+
+  // Update pills
+  const pillBox = document.getElementById("promptVariablePills");
+  if (pillBox) {
+    pillBox.innerHTML = varsFound.length > 0 
+      ? varsFound.map(v => `<span class="var-pill">{{${escapeHtml(v)}}}</span>`).join("")
+      : `<span style="font-size:0.7rem; color:var(--text-muted);">None</span>`;
+  }
+
+  // Update parameter inputs
+  const inputContainer = document.getElementById("sandboxVariableInputs");
+  if (inputContainer) {
+    if (varsFound.length === 0) {
+      inputContainer.innerHTML = `<span style="color:var(--text-muted); font-size:0.75rem;">No variables detected in template.</span>`;
+    } else {
+      inputContainer.innerHTML = varsFound.map(v => `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:0.72rem; font-family:monospace; font-weight:700; width:90px; color:var(--text-muted);">${escapeHtml(v)}:</label>
+          <input type="text" class="form-input sandbox-param-input" data-var="${escapeHtml(v)}" placeholder="value for ${escapeHtml(v)}" oninput="compilePromptPreview()" style="font-size:0.75rem; padding:4px 8px; flex:1;">
+        </div>
+      `).join("");
+    }
+  }
+
+  compilePromptPreview();
+}
+
+function compilePromptPreview() {
+  const template = document.getElementById("promptTemplateTextarea").value || "";
+  const paramInputs = document.querySelectorAll(".sandbox-param-input");
+  const values = {};
+  paramInputs.forEach(inp => {
+    values[inp.getAttribute("data-var")] = inp.value;
+  });
+
+  const compiled = template.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, varName) => {
+    return values[varName] !== undefined && values[varName] !== "" ? values[varName] : match;
+  });
+
+  const previewBox = document.getElementById("sandboxCompiledOutput");
+  if (previewBox) {
+    previewBox.innerText = compiled || "(empty template)";
+  }
+}
+
+async function saveCurrentPrompt() {
+  const name = activePromptName === "new_prompt" ? prompt("Enter prompt name (alphanumeric_snake_case):", "customer_agent") : activePromptName;
+  if (!name) return;
+
+  const template = document.getElementById("promptTemplateTextarea").value.trim();
+  const tagsRaw = document.getElementById("studioTagsInput").value;
+  const tags = tagsRaw.split(",").map(t => t.trim()).filter(Boolean);
+  const author = document.getElementById("studioAuthorInput").value.trim() || "engineer";
+  let version = document.getElementById("studioVersionSelect").value || "v1.0.0";
+
+  // Auto-increment minor version on save if editing existing
+  if (activePromptData && activePromptData.prompt && activePromptData.prompt.template !== template) {
+    const parts = version.replace("v", "").split(".");
+    if (parts.length === 3) {
+      parts[1] = parseInt(parts[1], 10) + 1;
+      version = `v${parts.join(".")}`;
+    }
+  }
+
+  try {
+    const url = currentDb ? `/api/prompts?db=${encodeURIComponent(currentDb)}` : "/api/prompts";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name,
+        template: template,
+        version: version,
+        tags: tags,
+        author: author,
+      }),
+    });
+    if (res.ok) {
+      alert(`Prompt '${name}' (${version}) saved successfully!`);
+      activePromptName = name;
+      await loadPromptStudio();
+      await selectPrompt(name);
+    } else {
+      const err = await res.json();
+      alert(`Error saving prompt: ${err.detail || "Bad Request"}`);
+    }
+  } catch (err) {
+    alert(`Failed to save prompt: ${err.message}`);
+  }
+}
+
+async function promoteCurrentPrompt(tag = "production") {
+  if (!activePromptName || activePromptName === "new_prompt") {
+    alert("Please save the prompt first before promoting.");
+    return;
+  }
+  const version = document.getElementById("studioVersionBadge").innerText;
+
+  try {
+    const url = currentDb ? `/api/prompts/promote?db=${encodeURIComponent(currentDb)}` : "/api/prompts/promote";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: activePromptName,
+        version: version,
+        tag: tag,
+      }),
+    });
+    if (res.ok) {
+      alert(`Prompt '${activePromptName}' (${version}) successfully promoted to '${tag}'!`);
+      await loadPromptStudio();
+      await selectPrompt(activePromptName);
+    } else {
+      const err = await res.json();
+      alert(`Error promoting prompt: ${err.detail || "Bad Request"}`);
+    }
+  } catch (err) {
+    alert(`Failed to promote prompt: ${err.message}`);
+  }
+}
+
+function sendPromptToRegressionMatrix() {
+  const template = document.getElementById("promptTemplateTextarea").value;
+  if (!template) {
+    alert("Please enter prompt template instructions first.");
+    return;
+  }
+
+  // Switch to regression view
+  switchView("regression");
+
+  // Populate candidate prompt
+  const candInput = document.getElementById("regCandPrompt");
+  if (candInput) {
+    candInput.value = template;
+    candInput.scrollIntoView({ behavior: "smooth" });
+    candInput.focus();
   }
 }
