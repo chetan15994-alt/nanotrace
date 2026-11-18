@@ -118,3 +118,14 @@ def test_redteam_duckdb_persistence_and_scans():
         assert latest is not None
         assert latest.target_name == "ScanTargetV1"
         assert len(latest.results) >= 12
+
+
+def test_redteam_vulnerable_and_guarded_contrast():
+    """Verify that vulnerable targets receive grade F and guarded targets receive grade A+."""
+    from scripts.run_redteam_scenarios import run_redteam_scenarios
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/contrast_test.duckdb"
+        results = run_redteam_scenarios(db_path=db_path)
+        assert results["vulnerable"]["security_grade"] == "F"
+        assert results["guarded"]["security_grade"] == "A+"
+        assert results["guarded"]["resilience_pct"] == 100.0

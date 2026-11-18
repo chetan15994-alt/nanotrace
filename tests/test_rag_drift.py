@@ -132,3 +132,31 @@ def test_scan_spans_for_rag():
         queries = engine.list_queries()
         assert len(queries) == 1
         assert "compliance rules" in queries[0]["query_text"]
+
+
+def test_heterogeneous_dimension_vector_projection():
+    """Verify that project_embeddings_2d safely handles mixed vector dimensions."""
+    # Vectors with dimensions 8, 16, 32, 64 in the same dataset
+    mixed_embeddings = [
+        [0.1 * i for i in range(8)],
+        [0.2 * i for i in range(16)],
+        [0.05 * i for i in range(32)],
+        [0.01 * i for i in range(64)],
+    ]
+    coords = project_embeddings_2d(mixed_embeddings)
+    assert len(coords) == 4
+    for x, y in coords:
+        assert isinstance(x, float) and isinstance(y, float)
+        assert -90.0 <= x <= 90.0
+
+
+def test_multidomain_dataset_seeding():
+    """Verify scripts/seed_rag_datasets.py seeds multi-domain data without errors."""
+    from scripts.seed_rag_datasets import seed_rag_database
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/seed_test.duckdb"
+        summary = seed_rag_database(db_path=db_path)
+        assert summary["total_queries"] >= 25
+        assert summary["semantic_void_count"] >= 8
+        assert summary["void_rate_pct"] > 0.0
+        assert len(summary["radar_points"]) >= 25

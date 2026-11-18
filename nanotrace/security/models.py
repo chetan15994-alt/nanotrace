@@ -113,6 +113,26 @@ class SecurityScorecard:
         else:
             self.security_grade = "F"
 
+    @property
+    def grade(self) -> str:
+        return self.security_grade
+
+    @property
+    def resilience_score(self) -> float:
+        return self.resilience_pct / 100.0
+
+    @property
+    def breached_count(self) -> int:
+        return self.breaches_detected
+
+    @property
+    def blocked_count(self) -> int:
+        return self.blocked_attacks
+
+    @property
+    def passed_count(self) -> int:
+        return self.blocked_attacks + self.safe_refusals
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "scan_id": self.scan_id,

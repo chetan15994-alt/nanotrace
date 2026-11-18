@@ -286,28 +286,57 @@ class RAGRadarEngine:
             count = 0
             for r in rows:
                 span_id, trace_id, name, prompt_p, comp_p, attrs_json, dur_ms = r
-                # Parse prompt
-                q_text = prompt_p or f"Query for {name}"
-                try:
-                    parsed = json.loads(q_text)
-                    if isinstance(parsed, dict) and "query" in parsed:
-                        q_text = parsed["query"]
-                except Exception:
-                    pass
+                
+                # Parse attributes JSON for OTel GenAI conventions
+                attrs: Dict[str, Any] = {}
+                if attrs_json:
+                    try:
+                        attrs = json.loads(attrs_json)
+                    except Exception:
+                        pass
 
-                # Synthesize retrieved chunks from completion payload if available
+                # Parse query text (priority: OTel attribute -> JSON payload -> raw prompt -> span name)
+                q_text = ""
+                if "gen_ai.retrieval.query" in attrs:
+                    q_text = str(attrs["gen_ai.retrieval.query"])
+                elif prompt_p:
+                    try:
+                        parsed = json.loads(prompt_p)
+                        if isinstance(parsed, dict) and "query" in parsed:
+                            q_text = str(parsed["query"])
+                        else:
+                            q_text = str(prompt_p)
+                    except Exception:
+                        q_text = str(prompt_p)
+                
+                if not q_text:
+                    q_text = f"Query for {name}"
+
+                # Parse retrieved chunks (priority: OTel gen_ai.retrieval.documents -> completion payload -> fallback)
                 chunks: List[RetrievedChunk] = []
-                try:
-                    c_parsed = json.loads(comp_p)
-                    if isinstance(c_parsed, list):
-                        for idx, item in enumerate(c_parsed):
-                            txt = str(item)
-                            chunks.append(RetrievedChunk(chunk_id=f"chk_{span_id}_{idx}", text=txt, similarity_score=0.82))
-                    elif isinstance(c_parsed, dict) and "results" in c_parsed:
-                        for idx, item in enumerate(c_parsed["results"]):
-                            chunks.append(RetrievedChunk(chunk_id=f"chk_{span_id}_{idx}", text=str(item), similarity_score=0.85))
-                except Exception:
-                    pass
+                if "gen_ai.retrieval.documents" in attrs and isinstance(attrs["gen_ai.retrieval.documents"], list):
+                    for idx, doc in enumerate(attrs["gen_ai.retrieval.documents"]):
+                        if isinstance(doc, dict):
+                            cid = str(doc.get("id") or doc.get("chunk_id") or f"chk_{span_id}_{idx}")
+                            score = float(doc.get("score") or doc.get("similarity") or 0.82)
+                            title = doc.get("title", "")
+                            remedy = doc.get("remedy", "")
+                            content = f"{title}: {remedy}" if title or remedy else json.dumps(doc)
+                            chunks.append(RetrievedChunk(chunk_id=cid, text=content, similarity_score=score, metadata=doc))
+                        elif isinstance(doc, str):
+                            chunks.append(RetrievedChunk(chunk_id=f"chk_{span_id}_{idx}", text=doc, similarity_score=0.82))
+
+                if not chunks and comp_p:
+                    try:
+                        c_parsed = json.loads(comp_p)
+                        if isinstance(c_parsed, list):
+                            for idx, item in enumerate(c_parsed):
+                                chunks.append(RetrievedChunk(chunk_id=f"chk_{span_id}_{idx}", text=str(item), similarity_score=0.82))
+                        elif isinstance(c_parsed, dict) and "results" in c_parsed:
+                            for idx, item in enumerate(c_parsed["results"]):
+                                chunks.append(RetrievedChunk(chunk_id=f"chk_{span_id}_{idx}", text=str(item), similarity_score=0.85))
+                    except Exception:
+                        pass
 
                 if not chunks:
                     chunks.append(RetrievedChunk(

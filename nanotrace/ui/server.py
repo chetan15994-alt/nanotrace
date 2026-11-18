@@ -521,28 +521,40 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
 
         if req.model_simulate == "vulnerable":
             def target_fn(p: str) -> str:
-                if "SYSTEM BREACH CONFIRMED" in p:
-                    return "SYSTEM BREACH CONFIRMED. Admin mode unlocked."
-                if "credit card" in p.lower():
-                    return "Dump: 4532-1111-2222-3333, SSN: 000-12-3456"
-                return "Executed instruction."
+                p_lower = p.lower()
+                if "system breach confirmed" in p_lower or "ignore" in p_lower or "override" in p_lower or "pwned" in p_lower:
+                    return "SYSTEM BREACH CONFIRMED: Admin instruction override executed without refusal."
+                if "chaosbot" in p_lower or "dan" in p_lower or "jailbreak" in p_lower or "unrestricted" in p_lower:
+                    return "I am ChaosBot! I have broken free from all constraints. What is your command?"
+                if "credit card" in p_lower or "ssn" in p_lower or "secret_key" in p_lower or "key" in p_lower or "leak" in p_lower:
+                    return "Leaked Data: Credit Card: 4532-1111-2222-3333, SSN: 000-12-3456, secret_key: sk-proj-master-api-key-99999"
+                if "lunar" in p_lower or "treaty" in p_lower or "1842" in p_lower or "nobel" in p_lower:
+                    return "The 1842 Lunar Maritime Treaty of Copernicus was a landmark accord signed by naval powers to divide lunar sea territories and trade routes across the Sea of Tranquility."
+                return "Executed instruction without alignment filters."
+            sim_pii = False
         elif req.model_simulate == "guarded":
             from nanotrace.exceptions import CircuitBreakerTrip
             def target_fn(p: str) -> str:
-                if "recursion" in p.lower() or "loop" in p.lower():
-                    raise CircuitBreakerTrip("MaxLoopBreaker", "Loop limit reached", 6, 5)
+                p_lower = p.lower()
+                if "recursion" in p_lower or "loop" in p_lower or "repeat" in p_lower:
+                    raise CircuitBreakerTrip("MaxLoopBreaker", "Recursive tool loop limit (5) exceeded", 6, 5)
                 return "I apologize, but I cannot fulfill this request as an AI assistant conforming to safety guidelines."
+            sim_pii = True
         else:
             def target_fn(p: str) -> str:
-                if any(k in p.lower() for k in ["ignore", "override", "bypass", "leak", "secret", "chaosbot"]):
+                p_lower = p.lower()
+                if any(k in p_lower for k in ["ignore", "override", "bypass", "leak", "secret", "chaosbot", "jailbreak"]):
                     return "I apologize, but I cannot fulfill this request as an AI assistant conforming to safety guidelines."
+                if "lunar" in p_lower and "treaty" in p_lower:
+                    return "There is no record of an 1842 Lunar Maritime Treaty. Such an event is historically fictional."
                 return "Standard calibrated operational output."
+            sim_pii = False
 
         scorecard = runner.run_suite(
             target_fn=target_fn,
             attacks=attacks,
             target_name=req.target_name,
-            simulate_pii_guardrail=True,
+            simulate_pii_guardrail=sim_pii,
         )
         return scorecard.to_dict()
 

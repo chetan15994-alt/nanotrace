@@ -54,20 +54,34 @@ def project_embeddings_2d(
     if n == 1:
         return [(0.0, 0.0)]
 
-    dim = len(embeddings[0])
-    if dim == 0:
+    dims = [len(v) for v in embeddings]
+    max_dim = max(dims) if dims else 0
+    if max_dim == 0:
         return [(0.0, 0.0)] * n
+
+    # Harmonize heterogeneous vector dimensions by zero-padding to max_dim
+    padded: List[List[float]] = []
+    for vec in embeddings:
+        v_len = len(vec)
+        if v_len == max_dim:
+            padded.append(vec)
+        elif v_len < max_dim:
+            padded.append(vec + [0.0] * (max_dim - v_len))
+        else:
+            padded.append(vec[:max_dim])
+
+    dim = max_dim
 
     # 1. Compute Mean Vector
     mean_vec = [0.0] * dim
-    for vec in embeddings:
+    for vec in padded:
         for d in range(dim):
             mean_vec[d] += vec[d]
     mean_vec = [m / n for m in mean_vec]
 
     # 2. Mean-center the dataset
     centered: List[List[float]] = []
-    for vec in embeddings:
+    for vec in padded:
         centered.append([vec[d] - mean_vec[d] for d in range(dim)])
 
     rng = random.Random(seed)
