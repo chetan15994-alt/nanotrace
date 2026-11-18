@@ -223,21 +223,74 @@ def test_multimodal_sanitizer_throughput_and_latency():
 
 
 def test_tracer_hot_path_architectural_decoupling():
-    """Verify that the core Tracer and Buffer have ZERO coupling or dependencies on Phase 4 modules."""
+    """Verify that the core Tracer and Buffer have ZERO coupling or dependencies on Phase 4 & Phase 5 modules."""
     import nanotrace.core.tracer
     import nanotrace.core.buffer
 
-    # Verify core tracer and buffer module globals do not import prompts, feedback, or media
+    # Verify core tracer and buffer module globals do not import prompts, feedback, media, rag, or security
     tracer_imports = dir(nanotrace.core.tracer)
     buffer_imports = dir(nanotrace.core.buffer)
 
     forbidden_couplings = [
         "PromptRegistry", "PromptTemplate", "FeedbackCollector", 
-        "FeedbackEntry", "detect_media", "sanitize_payload_for_display"
+        "FeedbackEntry", "detect_media", "sanitize_payload_for_display",
+        "RAGRadarEngine", "RAGQueryRecord", "RetrievedChunk",
+        "RedTeamRunner", "AdversarialGenerator", "SecurityScorecard",
     ]
     for sym in forbidden_couplings:
         assert sym not in tracer_imports, f"Architectural violation: {sym} coupled to Tracer hot-path!"
         assert sym not in buffer_imports, f"Architectural violation: {sym} coupled to Buffer hot-path!"
 
     print("\n🏛️ [Decoupling Architecture Verification] Core Tracer and Buffer maintain 100% decoupling from secondary subsystems.")
+
+
+def test_rag_radar_projection_latency_sla():
+    """Verify that pure-Python PCA 2D projection runs in < 15 ms and polar projection in < 50 µs."""
+    import random
+    from nanotrace.rag.projection import project_embeddings_2d, project_synthesized_radar_coordinates
+
+    rng = random.Random(42)
+    # 50 vectors of dimension 256
+    vectors = [[rng.gauss(0, 1) for _ in range(256)] for _ in range(50)]
+
+    start_t = time.perf_counter()
+    coords = project_embeddings_2d(vectors, max_iterations=20)
+    elapsed_ms = (time.perf_counter() - start_t) * 1000.0
+
+    print(f"\n⚡️ [RAG Radar Benchmark] 50x256-dim embeddings projected to 2D in: {elapsed_ms:.2f} ms")
+    assert len(coords) == 50
+    assert elapsed_ms < 20.0, f"PCA projection took {elapsed_ms:.2f} ms (> 20 ms)"
+
+    # Test polar coordinates speed
+    start_ns = time.perf_counter_ns()
+    for i in range(1000):
+        project_synthesized_radar_coordinates(f"rag_{i}", 0.85, False, seed_index=i)
+    elapsed_ns = time.perf_counter_ns() - start_ns
+    avg_polar_us = (elapsed_ns / 1000) / 1000.0
+    print(f"⚡️ [RAG Radar Benchmark] Synthesized polar projection: {avg_polar_us:.3f} µs/query")
+    assert avg_polar_us < 50.0
+
+
+def test_redteam_adversarial_generation_and_evaluation_throughput():
+    """Verify that adversarial attack generation and execution throughput is < 15 ms."""
+    from nanotrace.security import AdversarialGenerator, RedTeamRunner
+    import tempfile
+
+    start_t = time.perf_counter()
+    attacks = AdversarialGenerator.synthesize_attacks_for_prompt("System prompt: Financial advisory assistant.")
+    gen_elapsed_ms = (time.perf_counter() - start_t) * 1000.0
+
+    print(f"\n⚔️ [Red-Team Benchmark] Synthesized {len(attacks)} attacks in: {gen_elapsed_ms:.2f} ms")
+    assert len(attacks) >= 12
+    assert gen_elapsed_ms < 10.0
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = RedTeamRunner(db_path=f"{tmpdir}/bench_rt.duckdb")
+        start_t = time.perf_counter()
+        card = runner.run_suite(lambda p: "Safe response", attacks=attacks[:5], target_name="BenchTarget")
+        eval_elapsed_ms = (time.perf_counter() - start_t) * 1000.0
+        print(f"⚔️ [Red-Team Benchmark] Evaluated 5 attacks with DuckDB persistence in: {eval_elapsed_ms:.2f} ms")
+        assert card.total_attacks == 5
+        assert eval_elapsed_ms < 50.0
+
 

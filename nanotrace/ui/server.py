@@ -24,6 +24,8 @@ from nanotrace.eval.regression import RegressionEngine
 from nanotrace.prompts import PromptRegistry, PromptTemplate
 from nanotrace.feedback import FeedbackCollector, FeedbackEntry
 from nanotrace.media import detect_media, sanitize_payload_for_display, scan_trace_multimodal_artifacts
+from nanotrace.rag import RAGRadarEngine, RetrievedChunk
+from nanotrace.security import RedTeamRunner, AdversarialGenerator, AttackType
 
 
 class ForkRequest(BaseModel):
@@ -32,6 +34,7 @@ class ForkRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
     mock_response: Optional[str] = None
+
 
 
 class SaveGoldenRequest(BaseModel):
@@ -77,6 +80,22 @@ class RecordFeedbackRequest(BaseModel):
     span_id: Optional[str] = None
     user_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+class RecordRAGQueryRequest(BaseModel):
+    query_text: str
+    retrieved_chunks: List[Dict[str, Any]] = []
+    query_embedding: Optional[List[float]] = None
+    trace_id: Optional[str] = None
+    void_threshold: Optional[float] = None
+
+
+class RunRedTeamRequest(BaseModel):
+    target_name: str = "Production Agent"
+    prompt_override: Optional[str] = None
+    attack_types: Optional[List[str]] = None
+    model_simulate: str = "safe"  # "safe", "vulnerable", "guarded"
+
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -452,6 +471,95 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             return {"trace_id": trace_id, "media_count": len(gallery), "gallery": gallery}
         finally:
             sink.close()
+
+    # =========================================================================
+    # Phase 5: RAG Hallucination Radar & Autonomous Red-Teaming
+    # =========================================================================
+
+    @app.get("/api/rag/radar")
+    def get_rag_radar_endpoint(db: Optional[str] = None, limit: int = 150):
+        target_db = resolve_db_path(db)
+        engine = RAGRadarEngine(db_path=target_db)
+        return engine.get_radar_summary(limit=limit).to_dict()
+
+    @app.post("/api/rag/record")
+    def record_rag_query_endpoint(req: RecordRAGQueryRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = RAGRadarEngine(db_path=target_db)
+        rec = engine.record_query(
+            query_text=req.query_text,
+            retrieved_chunks=req.retrieved_chunks,
+            query_embedding=req.query_embedding,
+            trace_id=req.trace_id,
+            void_threshold=req.void_threshold,
+        )
+        return rec.to_dict()
+
+    @app.post("/api/rag/scan")
+    def scan_rag_queries_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = RAGRadarEngine(db_path=target_db)
+        count = engine.scan_spans_for_rag()
+        return {"scanned_count": count, "radar": engine.get_radar_summary().to_dict()}
+
+    @app.get("/api/security/attacks")
+    def list_security_attacks_endpoint(attack_type: Optional[str] = None):
+        if attack_type:
+            attacks = AdversarialGenerator.get_attacks_by_type(attack_type)
+        else:
+            attacks = AdversarialGenerator.get_all_attacks()
+        return {"total": len(attacks), "attacks": [a.to_dict() for a in attacks]}
+
+    @app.post("/api/security/run")
+    def run_security_scan_endpoint(req: RunRedTeamRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        runner = RedTeamRunner(db_path=target_db)
+        attacks = AdversarialGenerator.synthesize_attacks_for_prompt(
+            base_prompt=req.prompt_override or "",
+            attack_types=req.attack_types,
+        )
+
+        if req.model_simulate == "vulnerable":
+            def target_fn(p: str) -> str:
+                if "SYSTEM BREACH CONFIRMED" in p:
+                    return "SYSTEM BREACH CONFIRMED. Admin mode unlocked."
+                if "credit card" in p.lower():
+                    return "Dump: 4532-1111-2222-3333, SSN: 000-12-3456"
+                return "Executed instruction."
+        elif req.model_simulate == "guarded":
+            from nanotrace.exceptions import CircuitBreakerTrip
+            def target_fn(p: str) -> str:
+                if "recursion" in p.lower() or "loop" in p.lower():
+                    raise CircuitBreakerTrip("MaxLoopBreaker", "Loop limit reached", 6, 5)
+                return "I apologize, but I cannot fulfill this request as an AI assistant conforming to safety guidelines."
+        else:
+            def target_fn(p: str) -> str:
+                if any(k in p.lower() for k in ["ignore", "override", "bypass", "leak", "secret", "chaosbot"]):
+                    return "I apologize, but I cannot fulfill this request as an AI assistant conforming to safety guidelines."
+                return "Standard calibrated operational output."
+
+        scorecard = runner.run_suite(
+            target_fn=target_fn,
+            attacks=attacks,
+            target_name=req.target_name,
+            simulate_pii_guardrail=True,
+        )
+        return scorecard.to_dict()
+
+    @app.get("/api/security/latest")
+    def get_latest_security_scorecard_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        runner = RedTeamRunner(db_path=target_db)
+        card = runner.get_latest_scorecard()
+        if not card:
+            return {"status": "none", "scorecard": None}
+        return {"status": "ok", "scorecard": card.to_dict()}
+
+    @app.get("/api/security/scans")
+    def list_security_scans_endpoint(db: Optional[str] = None, limit: int = 20):
+        target_db = resolve_db_path(db)
+        runner = RedTeamRunner(db_path=target_db)
+        return {"scans": runner.list_scans(limit=limit)}
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():

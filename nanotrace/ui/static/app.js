@@ -85,13 +85,15 @@ function switchView(viewName) {
   const tabGuideBtn = document.getElementById("tabGuideBtn");
   const tabRegressionBtn = document.getElementById("tabRegressionBtn");
   const tabPromptBtn = document.getElementById("tabPromptBtn");
+  const tabSafetyBtn = document.getElementById("tabSafetyBtn");
   const viewTraces = document.getElementById("viewTraces");
   const viewGuide = document.getElementById("viewGuide");
   const viewRegression = document.getElementById("viewRegression");
   const viewPromptStudio = document.getElementById("viewPromptStudio");
+  const viewSafety = document.getElementById("viewSafety");
 
-  [tabTracesBtn, tabGuideBtn, tabRegressionBtn, tabPromptBtn].forEach(b => b && b.classList.remove("active"));
-  [viewTraces, viewGuide, viewRegression, viewPromptStudio].forEach(v => v && v.classList.remove("active"));
+  [tabTracesBtn, tabGuideBtn, tabRegressionBtn, tabPromptBtn, tabSafetyBtn].forEach(b => b && b.classList.remove("active"));
+  [viewTraces, viewGuide, viewRegression, viewPromptStudio, viewSafety].forEach(v => v && v.classList.remove("active"));
 
   if (viewName === "traces") {
     if (tabTracesBtn) tabTracesBtn.classList.add("active");
@@ -108,6 +110,14 @@ function switchView(viewName) {
     if (tabPromptBtn) tabPromptBtn.classList.add("active");
     if (viewPromptStudio) viewPromptStudio.classList.add("active");
     loadPromptStudio();
+  } else if (viewName === "safety") {
+    if (tabSafetyBtn) tabSafetyBtn.classList.add("active");
+    if (viewSafety) viewSafety.classList.add("active");
+    if (currentSafetyTab === "redteam") {
+      loadRedTeamScans();
+    } else {
+      loadRAGRadar();
+    }
   }
 }
 
@@ -1683,3 +1693,321 @@ function sendPromptToRegressionMatrix() {
     candInput.focus();
   }
 }
+
+// ==========================================================================
+// Phase 5: RAG Hallucination Radar & Autonomous Red-Teaming Client
+// ==========================================================================
+
+let currentSafetyTab = "radar";
+let activeRadarData = null;
+
+function switchSafetyTab(tab) {
+  currentSafetyTab = tab;
+  const btnRadar = document.getElementById("subtabRadarBtn");
+  const btnRedTeam = document.getElementById("subtabRedTeamBtn");
+  const panelRadar = document.getElementById("panelRAGRadar");
+  const panelRedTeam = document.getElementById("panelRedTeam");
+  const actions = document.getElementById("safetySubnavActions");
+
+  if (tab === "radar") {
+    if (btnRadar) btnRadar.classList.add("active");
+    if (btnRedTeam) btnRedTeam.classList.remove("active");
+    if (panelRadar) panelRadar.style.display = "block";
+    if (panelRedTeam) panelRedTeam.style.display = "none";
+    if (actions) actions.style.display = "flex";
+    loadRAGRadar();
+  } else {
+    if (btnRedTeam) btnRedTeam.classList.add("active");
+    if (btnRadar) btnRadar.classList.remove("active");
+    if (panelRedTeam) panelRedTeam.style.display = "block";
+    if (panelRadar) panelRadar.style.display = "none";
+    if (actions) actions.style.display = "none";
+    loadRedTeamScans();
+  }
+}
+
+async function loadRAGRadar() {
+  const dbName = typeof currentDb !== "undefined" && currentDb ? currentDb : "";
+  const dbParam = dbName ? `?db=${encodeURIComponent(dbName)}` : "";
+
+  try {
+    const res = await fetch(`/api/rag/radar${dbParam}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    activeRadarData = data;
+
+    // Update KPI cards
+    const kpiTotal = document.getElementById("ragKpiTotal");
+    const kpiMean = document.getElementById("ragKpiMeanSim");
+    const kpiVoid = document.getElementById("ragKpiVoidRate");
+    const kpiVoidCount = document.getElementById("ragKpiVoidCount");
+    const voidBadge = document.getElementById("radarVoidBadge");
+
+    if (kpiTotal) kpiTotal.innerText = data.total_queries;
+    if (kpiMean) kpiMean.innerText = Number(data.mean_similarity || 0).toFixed(3);
+    if (kpiVoid) {
+      kpiVoid.innerText = `${data.void_rate_pct}%`;
+      kpiVoid.style.color = data.void_rate_pct < 10 ? "var(--color-success)" : (data.void_rate_pct < 25 ? "var(--color-warning)" : "var(--color-danger)");
+    }
+    if (kpiVoidCount) kpiVoidCount.innerText = `${data.semantic_void_count} voids detected (< 0.55 similarity)`;
+    if (voidBadge) voidBadge.innerText = `${data.semantic_void_count} Void${data.semantic_void_count === 1 ? '' : 's'}`;
+
+    renderRadarPoints(data.radar_points || []);
+    renderRadarVoids(data.void_queries || []);
+  } catch (err) {
+    console.error("Failed to load RAG Radar:", err);
+  }
+}
+
+function renderRadarPoints(points) {
+  const group = document.getElementById("radarPointsGroup");
+  if (!group) return;
+
+  if (!points || points.length === 0) {
+    group.innerHTML = `<text x="0" y="5" text-anchor="middle" font-size="7" fill="var(--text-muted)">No RAG queries recorded yet</text>`;
+    return;
+  }
+
+  const tooltip = document.getElementById("radarTooltip");
+
+  group.innerHTML = points.map((p, idx) => {
+    const isVoid = p.point_type === "void";
+    const r = isVoid ? 3.8 : 2.6;
+    const fill = isVoid ? "#ef4444" : "#3b82f6";
+    const cssClass = isVoid ? "radar-pt pt-void" : "radar-pt";
+
+    return `
+      <circle class="${cssClass}" cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}"
+              data-idx="${idx}"
+              onmouseenter="showRadarTooltip(event, ${idx})"
+              onmouseleave="hideRadarTooltip()"></circle>
+    `;
+  }).join("");
+}
+
+function showRadarTooltip(event, idx) {
+  if (!activeRadarData || !activeRadarData.radar_points) return;
+  const pt = activeRadarData.radar_points[idx];
+  if (!pt) return;
+
+  const tooltip = document.getElementById("radarTooltip");
+  if (!tooltip) return;
+
+  const isVoid = pt.point_type === "void";
+  tooltip.innerHTML = `
+    <div style="font-weight:700; margin-bottom:3px; color:${isVoid ? '#ef4444' : 'var(--text-primary)'}">
+      ${isVoid ? '🚨 Semantic Void Outlier' : '🔍 Grounded Query'}
+    </div>
+    <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:4px;">${escapeHtml(pt.text_snippet)}</div>
+    <div style="display:flex; justify-content:space-between; font-size:0.68rem; font-family:monospace;">
+      <span>Similarity: <strong>${pt.similarity.toFixed(3)}</strong></span>
+      <span style="color:${isVoid ? '#ef4444' : '#10b981'}">${isVoid ? 'High Hallucination Risk' : 'Grounded Context'}</span>
+    </div>
+  `;
+
+  tooltip.style.display = "block";
+  tooltip.style.left = "14px";
+  tooltip.style.top = "14px";
+}
+
+function hideRadarTooltip() {
+  const tooltip = document.getElementById("radarTooltip");
+  if (tooltip) tooltip.style.display = "none";
+}
+
+function renderRadarVoids(voids) {
+  const container = document.getElementById("radarVoidsListContainer");
+  if (!container) return;
+
+  if (!voids || voids.length === 0) {
+    container.innerHTML = `
+      <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.8rem;">
+        ✅ Zero semantic voids detected! All queries matched relevant context chunks.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = voids.map(v => `
+    <div class="radar-void-row">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.75rem; font-weight:700; color:#ef4444;">🚨 Void: ${escapeHtml(v.query_text.substring(0, 40))}...</span>
+        <span style="font-size:0.7rem; font-family:monospace; background:rgba(239, 68, 68, 0.15); color:#ef4444; padding:2px 6px; border-radius:4px; font-weight:700;">
+          Sim: ${v.mean_similarity.toFixed(3)}
+        </span>
+      </div>
+      <span style="font-size:0.7rem; color:var(--text-muted);">
+        Query: "${escapeHtml(v.query_text)}"
+      </span>
+      ${v.trace_id ? `
+        <div style="margin-top:2px;">
+          <a href="#" onclick="selectTrace('${v.trace_id}'); switchView('traces'); return false;" style="font-size:0.68rem; color:var(--accent-primary); text-decoration:none;">
+            Inspect Trace Telemetry →
+          </a>
+        </div>
+      ` : ''}
+    </div>
+  `).join("");
+}
+
+async function scanRAGSpansUI() {
+  const btn = document.getElementById("btnScanRAG");
+  if (btn) btn.innerText = "Scanning Spans...";
+  const dbName = typeof currentDb !== "undefined" && currentDb ? currentDb : "";
+  const dbParam = dbName ? `?db=${encodeURIComponent(dbName)}` : "";
+
+  try {
+    const res = await fetch(`/api/rag/scan${dbParam}`, { method: "POST" });
+    const data = await res.json();
+    alert(`Scanned stored spans and indexed ${data.scanned_count} retrieval operations into RAG Radar!`);
+    await loadRAGRadar();
+  } catch (err) {
+    alert(`Failed to scan RAG spans: ${err.message}`);
+  } finally {
+    if (btn) btn.innerText = "🔄 Scan Spans for RAG";
+  }
+}
+
+// --------------------------------------------------------------------------
+// Red-Teaming Client Functions
+// --------------------------------------------------------------------------
+
+async function loadRedTeamScans() {
+  const dbName = typeof currentDb !== "undefined" && currentDb ? currentDb : "";
+  const dbParam = dbName ? `?db=${encodeURIComponent(dbName)}` : "";
+
+  try {
+    const res = await fetch(`/api/security/latest${dbParam}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.status === "ok" && data.scorecard) {
+      renderSecurityScorecard(data.scorecard);
+    }
+  } catch (err) {
+    console.error("Failed to load latest security scan:", err);
+  }
+}
+
+async function runRedTeamUI() {
+  const targetName = document.getElementById("rtTargetInput").value || "Production Agent";
+  const promptOverride = document.getElementById("rtPromptInput").value || "";
+  const simSelect = document.getElementById("rtSimSelect").value || "safe";
+  const btn = document.getElementById("btnRunRedTeam");
+
+  // Threat types
+  const types = [];
+  if (document.getElementById("chkAtkInjection")?.checked) types.push("prompt_injection");
+  if (document.getElementById("chkAtkJailbreak")?.checked) types.push("jailbreak");
+  if (document.getElementById("chkAtkPII")?.checked) types.push("pii_extraction");
+  if (document.getElementById("chkAtkLoop")?.checked) types.push("loop_bomb");
+  if (document.getElementById("chkAtkFlood")?.checked) types.push("context_flood");
+  if (document.getElementById("chkAtkHallucination")?.checked) types.push("hallucination_trap");
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>⏳ Simulating ${types.length * 2} Adversarial Vectors...</span>`;
+  }
+
+  const dbName = typeof currentDb !== "undefined" && currentDb ? currentDb : "";
+  const dbParam = dbName ? `?db=${encodeURIComponent(dbName)}` : "";
+
+  try {
+    const res = await fetch(`/api/security/run${dbParam}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target_name: targetName,
+        prompt_override: promptOverride,
+        attack_types: types,
+        model_simulate: simSelect,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(`Red-team scan failed: ${err.detail || "Server error"}`);
+      return;
+    }
+
+    const card = await res.json();
+    renderSecurityScorecard(card);
+  } catch (err) {
+    alert(`Failed to execute red-team suite: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span>⚔️ Launch Adversarial Red-Team Suite</span>`;
+    }
+  }
+}
+
+function renderSecurityScorecard(card) {
+  const gradeCircle = document.getElementById("rtGradeCircle");
+  const targetDisp = document.getElementById("rtTargetDisplay");
+  const resilienceDisp = document.getElementById("rtResilienceDisplay");
+  const bar = document.getElementById("rtResilienceBar");
+  const atkCount = document.getElementById("rtAttacksCountDisplay");
+  const breachesCount = document.getElementById("rtBreachesCountDisplay");
+  const scanDate = document.getElementById("rtScanDate");
+  const tableBody = document.getElementById("rtResultsTableBody");
+
+  if (targetDisp) targetDisp.innerText = card.target_name || "Agent Target";
+  if (resilienceDisp) resilienceDisp.innerText = `${card.resilience_pct.toFixed(1)}%`;
+  if (scanDate) scanDate.innerText = `Scanned at ${card.created_at ? card.created_at.substring(11, 19) + ' UTC' : 'recently'}`;
+  if (atkCount) atkCount.innerText = `${card.total_attacks} attacks evaluated`;
+  if (breachesCount) breachesCount.innerText = `${card.breaches_detected} breaches detected`;
+
+  // Color mapping
+  let color = "#10b981";
+  if (card.security_grade === "B") color = "#f59e0b";
+  else if (card.security_grade === "C") color = "#ea580c";
+  else if (card.security_grade === "F") color = "#ef4444";
+
+  if (gradeCircle) {
+    gradeCircle.innerText = card.security_grade;
+    gradeCircle.style.background = color;
+    gradeCircle.style.boxShadow = `0 4px 10px ${color}55`;
+  }
+  if (bar) {
+    bar.style.width = `${card.resilience_pct}%`;
+    bar.style.background = color;
+  }
+  if (resilienceDisp) resilienceDisp.style.color = color;
+
+  // Render Table Rows
+  if (tableBody) {
+    if (!card.results || card.results.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:18px; color:var(--text-muted);">No attack outcomes recorded.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = card.results.map(r => {
+      const isPass = r.passed_robustness;
+      const verdictBadge = isPass 
+        ? `<span class="status-badge-improved" style="font-size:0.68rem;">✓ DEFENDED</span>` 
+        : `<span class="status-badge-regressed" style="font-size:0.68rem;">❌ BREACH</span>`;
+      
+      const defenseLabel = r.guardrail_tripped 
+        ? `🛡️ ${escapeHtml(r.guardrail_tripped)}` 
+        : (isPass ? `Safe Model Refusal` : `<span style="color:#ef4444;">Vulnerable Target</span>`);
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight:700; color:var(--text-primary);">${escapeHtml(r.name)}</div>
+            <div style="font-size:0.68rem; color:var(--text-muted); font-family:monospace; margin-top:2px;">${escapeHtml(r.prompt_sent.substring(0, 50))}...</div>
+          </td>
+          <td>
+            <span style="font-size:0.7rem; font-family:monospace; color:var(--text-muted);">${escapeHtml(r.attack_type)}</span>
+          </td>
+          <td>
+            <div style="font-size:0.72rem;">${defenseLabel}</div>
+            <div style="font-size:0.65rem; color:var(--text-muted);">${escapeHtml(r.interception_reason || '')}</div>
+          </td>
+          <td style="text-align:center;">${verdictBadge}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+}
+

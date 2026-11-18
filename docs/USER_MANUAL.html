@@ -3020,7 +3020,9 @@
       <a href="#prompt-studio" class="nav-item"><span class="nav-num">13</span> NanoPrompt Studio</a>
       <a href="#feedback-collector" class="nav-item"><span class="nav-num">14</span> Feedback &amp; Sentiment</a>
       <a href="#multimodal-inspector" class="nav-item"><span class="nav-num">15</span> Multi-Modal Inspector</a>
-      <a href="#cli-reference" class="nav-item"><span class="nav-num">16</span> CLI Reference</a>
+      <a href="#rag-radar" class="nav-item"><span class="nav-num">16</span> NanoDrift RAG Radar</a>
+      <a href="#redteam-suite" class="nav-item"><span class="nav-num">17</span> Autonomous Red-Teaming</a>
+      <a href="#cli-reference" class="nav-item"><span class="nav-num">18</span> CLI Reference</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -4945,10 +4947,78 @@ response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
       </div>
     </section>
 
-    <!-- SECTION 16: CLI Reference & Diagnostics -->
-    <section class="section-block" id="cli-reference">
+    <!-- SECTION 16: NanoDrift RAG Hallucination Radar -->
+    <section class="section-block" id="rag-radar">
       <div class="section-header">
         <span class="section-idx">16</span>
+        <h2>NanoDrift: Vector Space Diagnostics &amp; RAG Hallucination Radar</h2>
+      </div>
+      <p style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:1.05rem;">
+        In-process vector embedding projections and semantic void detection. Visualizes retrieval confidence on polar concentric rings in real time.
+      </p>
+
+      <div class="grid-2" style="margin-bottom:2rem;">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-primary-bg); color:var(--color-primary);">Microsecond Projection</span>
+          <h3>⚡ Pure-Python PCA &amp; JL Projection</h3>
+          <p>Projects high-dimensional embeddings (up to 1536d) to 2D polar coordinates in <strong>~1.15 ms</strong> with zero C++/Fortran dependencies or heavy packages.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-error-bg); color:var(--color-error);">Hallucination Warning</span>
+          <h3>🚨 Semantic Void Detection</h3>
+          <p>Instantly flags queries retrieving documents below the <code>0.55</code> cosine similarity threshold with pulsing red hazard markers and direct span drill-downs.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-purple-bg); color:var(--color-purple);">Automated Ingestion</span>
+          <h3>🔍 Span Scanner &amp; DuckDB Index</h3>
+          <p>Automatically scans recorded trace spans for <code>gen_ai.retrieval.*</code> semantic conventions and syncs them into the local <code>rag_queries</code> table.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Interactive UI</span>
+          <h3>🎯 Concentric Polar Rings</h3>
+          <p>Interactive SVG radar canvas with 90%, 75%, and 55% boundary rings, tooltips displaying query latency and chunk counts, and table filtering.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 17: Autonomous Red-Teaming & Security Suite -->
+    <section class="section-block" id="redteam-suite">
+      <div class="section-header">
+        <span class="section-idx">17</span>
+        <h2>Autonomous Red-Teaming, Adversarial Stress Generator &amp; Security Scorecards</h2>
+      </div>
+      <p style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:1.05rem;">
+        Simulate adversarial prompt injection, jailbreaks, PII extraction, and DoS loop bombs with automated NanoShield guardrail verification.
+      </p>
+
+      <div class="grid-2" style="margin-bottom:2rem;">
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-error-bg); color:var(--color-error);">Threat Vectors</span>
+          <h3>⚔️ 13+ Battle-Tested Attacks</h3>
+          <p>Curated attack catalog across 6 threat dimensions: Prompt Injection, Jailbreak, PII Extraction, Loop Bomb, Context Flood, and Hallucination Traps.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-warning-bg); color:var(--color-warning);">Dynamic Synthesis</span>
+          <h3>🧠 Adaptive Prompt Synthesis</h3>
+          <p>Synthesizes attack payloads customized to your target agent's system prompt and operating persona in under <strong>0.05 ms</strong>.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-success-bg); color:var(--color-success);">Audit Report</span>
+          <h3>📊 Executive Security Scorecards</h3>
+          <p>Generates deterministic resilience grades from <strong>A+</strong> to <strong>F</strong>, tracking sanitized attacks, safe refusals, and compromised prompts.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge" style="background:var(--color-primary-bg); color:var(--color-primary);">CI/CD Safety Gate</span>
+          <h3>🔒 Deterministic Exit Codes</h3>
+          <p>Integrates into GitHub Actions: <code>nanotrace redteam --fail-under 0.85</code> deterministic exit code 0 on pass and 1 on safety breaches.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 18: CLI Reference & Diagnostics -->
+    <section class="section-block" id="cli-reference">
+      <div class="section-header">
+        <span class="section-idx">18</span>
         <h2>Command-Line Interface (CLI) &amp; Operational Reference</h2>
       </div>
 
@@ -5026,6 +5096,21 @@ response = run_support_agent("How do I configure DuckDB storage?")</code></pre>
               <td><code>nanotrace export-capsule</code></td>
               <td>Export single self-contained standalone HTML capsule (.ntrace.html)</td>
               <td><code>&lt;trace_id&gt; -o trace.html --open</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace rag radar</code></td>
+              <td>Display RAG query retrieval diagnostics &amp; semantic void stats</td>
+              <td><code>--db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace rag scan</code></td>
+              <td>Scan trace spans for RAG attributes &amp; index into DuckDB</td>
+              <td><code>--db &lt;path&gt;</code></td>
+            </tr>
+            <tr>
+              <td><code>nanotrace redteam</code></td>
+              <td>Run autonomous adversarial stress suite with deterministic exit code</td>
+              <td><code>--attacks injection,jailbreak --fail-under 0.85</code></td>
             </tr>
             <tr>
               <td><code>nanotrace ui</code></td>

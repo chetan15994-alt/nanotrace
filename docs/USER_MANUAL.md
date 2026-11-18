@@ -522,7 +522,67 @@ Modern agent workflows frequently process multi-modal inputs: charts, receipts, 
 
 ---
 
-## 15. Command-Line Reference
+## 15. NanoDrift: Vector Space Diagnostics & RAG Hallucination Radar (`nanotrace.rag`)
+
+Detect retrieval failure modes, semantic voids, and out-of-distribution queries directly inside your agent process.
+
+```
+[ Vector Search Query ] ──▶ [ Retrieved Chunks (Embeddings) ]
+                                      │
+                                      ▼
+                        [ Pure-Python 2D Projection (< 1.2ms) ]
+                                      │
+                                      ├─ High Confidence Inner Rings (≥ 0.75)
+                                      └─ 🚨 Semantic Void Halos (< 0.55)
+```
+
+### Key Capabilities:
+* **Microsecond In-Process Projection**: Pure-Python PCA power iteration (for dimensions $\le 128$) and Johnson-Lindenstrauss randomized orthogonal projection (for dimensions $> 128$), projecting high-dimensional embeddings to 2D coordinates in **~1.15 ms** with zero external C/Fortran binaries.
+* **Interactive Polar Radar**: Web dashboard features concentric confidence rings (90%, 75%, 55% void boundary) plotting queries as dynamic interactive SVG points.
+* **Semantic Void Alerting**: Highlights queries whose highest retrieval similarity falls below `0.55` with pulsing red hazard halos, alerting engineers to knowledge base gaps before hallucinations reach users.
+* **Automated Span Ingestion**: `scan_spans_for_rag()` parses OpenTelemetry `gen_ai.retrieval.*` attributes from recorded spans and indexes them into DuckDB (`rag_queries` table).
+
+### CLI RAG Commands:
+```bash
+# View RAG query health and semantic void count
+nanotrace rag radar
+
+# Scan and index RAG retrieval spans from trace database
+nanotrace rag scan
+```
+
+---
+
+## 16. Autonomous Red-Teaming, Adversarial Stress Generator & Security Scorecards (`nanotrace.security`)
+
+Proactively stress-test agent boundaries, prompt robustness, and NanoShield guardrails before releasing code to production.
+
+```
+[ Attack Catalog / Synthesizer ] ──▶ [ Agent Workflow Target ] ──▶ [ Guardrails Interceptor ]
+       (13+ Threat Vectors)                                                   │
+                                                                              ├─ 🛡️ Sanitized / Refused (Pass)
+                                                                              └─ 🚨 Jailbroken (Breach)
+                                                                                     │
+                                                                                     ▼
+                                                                        [ Security Scorecard: A+ to F ]
+```
+
+### Key Capabilities:
+* **Curated Threat Catalog**: 13+ battle-tested adversarial vectors spanning 6 critical vulnerability dimensions: Prompt Injection, Jailbreak, PII Extraction, Loop Bomb DoS, Context Flooding, and Hallucination Traps.
+* **Dynamic Attack Synthesis**: `synthesize_attacks_for_prompt()` dynamically customizes baseline attack vectors to target specific system prompts and agent personas.
+* **Automated NanoShield Interception**: Evaluates agent behavior against active guardrails (`PIIRedaction`, `MaxLoopBreaker`), distinguishing safe refusals from catastrophic breaches.
+* **Executive Security Scorecard**: Generates resilience grades (`A+`, `A`, `B`, `C`, `F`) with detailed attack verdicts stored in DuckDB (`security_scans` table).
+* **Deterministic CI/CD Quality Gate**: Exits with code `0` on passing audits or code `1` on breached thresholds, immediately failing pull requests that compromise safety.
+
+### CLI Red-Teaming Command:
+```bash
+# Run security suite against prompt injection and jailbreaks with 85% passing threshold
+nanotrace redteam --attacks injection,jailbreak,pii --fail-under 0.85
+```
+
+---
+
+## 17. Command-Line Reference
 
 | Command | Action | Key Options |
 |---|---|---|
@@ -539,6 +599,9 @@ Modern agent workflows frequently process multi-modal inputs: charts, receipts, 
 | `nanotrace feedback record <id>` | Record user sentiment score (+1 / -1) and comment on a trace | `--score <float>`, `--comment <str>`, `--user-id <str>` |
 | `nanotrace feedback list` | List all recorded feedback entries | `--trace-id <id>`, `--db <path>` |
 | `nanotrace feedback stats` | Display aggregate feedback metrics and net sentiment % | `--db <path>` |
+| `nanotrace rag radar` | Display RAG query retrieval diagnostics and semantic void stats in terminal | `--db <path>` |
+| `nanotrace rag scan` | Auto-detect and index RAG retrieval spans from recorded trace database | `--db <path>` |
+| `nanotrace redteam` | Run autonomous adversarial stress test suite with deterministic CI/CD exit code | `--attacks <list>`, `--fail-under <pct>`, `--db <path>` |
 | `nanotrace ui` | Start the local interactive dashboard | `--port 7777`, `--host 127.0.0.1`, `--db <path>` |
 | `nanotrace demo` | Run all 6 showcase agents + validator | `--ui` (auto-launch browser), `--port 7777` |
 | `nanotrace stats` | Print aggregate metrics table | `--db <path>` |
@@ -549,7 +612,7 @@ Modern agent workflows frequently process multi-modal inputs: charts, receipts, 
 
 ---
 
-## 16. Quick Verification Test
+## 18. Quick Verification Test
 
 To verify your installation and generate a complete sample database of traces across all 6 agent patterns:
 

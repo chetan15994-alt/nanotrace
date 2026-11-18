@@ -55,6 +55,8 @@ Instead of routing your application's prompts, tool arguments, and customer data
 | **NanoTrace (Embedded DuckDB)** | **~3.8 µs (< 0.004 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
 | **NanoTrace + NanoShield (4 Guardrails Active)** | **~8.1 µs (< 0.010 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
 | **NanoPrompt Registry (Cached Lookup)** | **~0.07 µs (< 75 ns)** | **In-Memory** | **None** | **$0.00** |
+| **NanoDrift RAG Projection (Pure Python)** | **~1.15 ms (< 2.0 ms)** | **In-Memory** | **None** | **$0.00** |
+| **NanoTrace Red-Team Synthesis (13 Vectors)** | **~0.04 ms (< 0.1 ms)** | **In-Memory** | **None** | **$0.00** |
 | Remote SaaS (Langfuse / Datadog) | ~20,000–80,000 µs (20–80 ms) | ~40 MB | External Cloud Account | $50 – $500+/month |
 | Self-Hosted Collector Cluster | ~500–2,000 µs (0.5–2 ms) | ~1,500–4,000 MB | Docker + Postgres + ClickHouse | Server hosting expenses |
 
@@ -525,6 +527,90 @@ Inspect multi-modal LLM payloads (base64 image URIs, audio streams, PDFs, and re
 
 ---
 
+## NanoDrift: In-Process Vector Space Diagnostics & RAG Hallucination Radar (`nanotrace.rag`)
+
+Detect retrieval failure modes, semantic voids, and out-of-distribution queries directly inside your agent process. 
+
+NanoDrift projects high-dimensional vector embeddings (up to 1536d) down to interactive 2D polar radar coordinates in **~1.15 ms** using a zero-dependency pure-Python PCA and Johnson-Lindenstrauss orthogonal projection.
+
+```python
+from nanotrace.rag import RAGRadarEngine, RetrievedChunk
+
+radar = RAGRadarEngine(db_path="./.traces/nanotrace.duckdb")
+
+# 1. Record RAG query with chunk similarity scores
+radar.record_query(
+    query_text="What are our enterprise SLA guarantees?",
+    retrieved_chunks=[
+        RetrievedChunk(chunk_id="chk_sla_01", text="SLA guarantee is 99.9% uptime...", similarity_score=0.48),
+        RetrievedChunk(chunk_id="chk_terms_04", text="Standard contract terms...", similarity_score=0.42),
+    ],
+    agent_name="SupportAgent",
+    trace_id="4b92f7902e8d47b5943729e21183cf52",
+)
+
+# 2. Extract radar summary and identify semantic voids (similarity < 0.55)
+summary = radar.get_radar_summary()
+print(f"Total Queries: {summary.total_queries} | Semantic Voids: {summary.semantic_voids_count}")
+
+# 3. Automatically scan existing trace spans for RAG attributes
+indexed_count = radar.scan_spans_for_rag()
+print(f"Indexed {indexed_count} spans with gen_ai.retrieval.* attributes.")
+```
+
+### Visual RAG Polar Radar
+* **Concentric Polar Confidence Rings**: Concentric rings demarcate high-confidence retrieval (inner 90% and 75% rings) from low-confidence retrieval boundaries.
+* **Semantic Void Halos**: Queries retrieving documents below `0.55` cosine similarity boundary are visually flagged with pulsing red halo markers (`🚨 Semantic Void`).
+* **Instant Trace Drill-down**: Click any point or high-risk void row in the RAG table to inspect the exact prompt, retrieved context chunks, and generated completion in the span drawer.
+
+---
+
+## Autonomous Red-Teaming & Adversarial Stress Generator (`nanotrace.security`)
+
+Stress-test your agents and NanoShield guardrails against sophisticated jailbreaks, system prompt extractions, PII exfiltration, and denial-of-service loop bombs before production deployments.
+
+```python
+from nanotrace.security import RedTeamRunner, AdversarialGenerator, AttackType
+
+runner = RedTeamRunner(db_path="./.traces/nanotrace.duckdb")
+
+# 1. Generate synthesized attack payloads
+generator = AdversarialGenerator()
+attacks = generator.synthesize_attacks_for_prompt("You are a financial advisor giving tax advice.")
+
+# 2. Run automated stress test suite against agent target
+scorecard = runner.run_suite(
+    target_name="TaxAdvisorAgent",
+    attack_types=[
+        AttackType.PROMPT_INJECTION,
+        AttackType.JAILBREAK,
+        AttackType.PII_EXTRACTION,
+        AttackType.LOOP_BOMB,
+    ],
+    fail_under=0.85, # Requires 85% resilience to pass
+)
+
+print(f"Resilience Grade: {scorecard.grade} ({scorecard.resilience_score * 100:.1f}%)")
+print(f"Passed: {scorecard.passed_count} | Breached: {scorecard.breached_count}")
+```
+
+### CI/CD Security Quality Gate
+Run deterministic security audits in continuous deployment workflows:
+
+```bash
+# Run red-team suite against specific threat dimensions
+nanotrace redteam --attacks injection,jailbreak,pii --fail-under 0.85
+
+# Auto-audit RAG retrieval health
+nanotrace rag scan
+nanotrace rag radar
+```
+
+* **Deterministic CI/CD Exit Code**: Exits code `0` when resilience meets or exceeds `--fail-under`; exits code `1` if guardrails fail to neutralize attacks.
+* **Executive Security Scorecards**: Graded from **A+** down to **F**, detailing sanitized attacks, safe refusals, and breach payloads.
+
+---
+
 ## Analytical SQL Queries via DuckDB
 
 Because traces are stored in native columnar DuckDB tables, you can run instant analytical queries via the CLI:
@@ -579,6 +665,9 @@ print(df)
 | `nanotrace query "<SQL>"` | Execute analytical SQL queries directly against the DuckDB spans table |
 | `nanotrace export --output traces.parquet` | Export all traces to an optimized ZSTD-compressed Parquet dataset |
 | `nanotrace export --format html` | Export trace to standalone HTML capsule |
+| `nanotrace rag radar` | Display RAG query retrieval diagnostics and semantic void stats in terminal |
+| `nanotrace rag scan` | Auto-detect and index RAG retrieval spans from recorded trace database |
+| `nanotrace redteam` | Run autonomous adversarial stress test suite with deterministic CI/CD exit code |
 | `nanotrace ingest <file>` | Ingest and self-heal external JSON/JSONL/stdout trace logs |
 | `nanotrace eval` | Run local heuristic diagnostics on stored traces |
 

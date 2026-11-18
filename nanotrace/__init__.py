@@ -35,17 +35,37 @@ from nanotrace.eval.regression import RegressionEngine, RegressionRun, Regressio
 from nanotrace.prompts import PromptTemplate, PromptRegistry
 from nanotrace.feedback import FeedbackEntry, FeedbackCollector
 from nanotrace.media import detect_media, sanitize_payload_for_display, scan_trace_multimodal_artifacts
+from nanotrace.rag import (
+    RetrievedChunk,
+    RAGQueryRecord,
+    RAGRadarPoint,
+    RAGRadarSummary,
+    RAGRadarEngine,
+)
+from nanotrace.security import (
+    AttackType,
+    AdversarialAttack,
+    AttackResult,
+    SecurityScorecard,
+    AdversarialGenerator,
+    RedTeamRunner,
+)
 from nanotrace.exceptions import (
     NanoTraceError,
     CircuitBreakerTrip,
     ReplayError,
     PromptError,
     FeedbackError,
+    RAGDriftError,
+    SecurityError,
 )
 
 _DEFAULT_TRACER: Optional[NanoTracer] = None
 _DEFAULT_PROMPT_REGISTRY: Optional[PromptRegistry] = None
 _DEFAULT_FEEDBACK_COLLECTOR: Optional[FeedbackCollector] = None
+_DEFAULT_RAG_RADAR_ENGINE: Optional[RAGRadarEngine] = None
+_DEFAULT_REDTEAM_RUNNER: Optional[RedTeamRunner] = None
+
 
 
 def init(
@@ -193,6 +213,28 @@ def get_feedback_collector(db_path: Optional[str] = None) -> FeedbackCollector:
     return _DEFAULT_FEEDBACK_COLLECTOR
 
 
+def get_rag_radar_engine(db_path: Optional[str] = None) -> RAGRadarEngine:
+    """Retrieve or initialize the active RAGRadarEngine."""
+    global _DEFAULT_RAG_RADAR_ENGINE
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_RAG_RADAR_ENGINE is None or _DEFAULT_RAG_RADAR_ENGINE.db_path != target_path:
+        _DEFAULT_RAG_RADAR_ENGINE = RAGRadarEngine(db_path=target_path)
+    return _DEFAULT_RAG_RADAR_ENGINE
+
+
+def get_redteam_runner(db_path: Optional[str] = None) -> RedTeamRunner:
+    """Retrieve or initialize the active RedTeamRunner."""
+    global _DEFAULT_REDTEAM_RUNNER
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_REDTEAM_RUNNER is None or _DEFAULT_REDTEAM_RUNNER.db_path != target_path:
+        _DEFAULT_REDTEAM_RUNNER = RedTeamRunner(db_path=target_path)
+    return _DEFAULT_REDTEAM_RUNNER
+
+
 __all__ = [
     "__version__",
     "init",
@@ -223,6 +265,8 @@ __all__ = [
     "ReplayError",
     "PromptError",
     "FeedbackError",
+    "RAGDriftError",
+    "SecurityError",
     "NanoTraceError",
     "ReplayEngine",
     "ForkResult",
@@ -240,4 +284,18 @@ __all__ = [
     "detect_media",
     "sanitize_payload_for_display",
     "scan_trace_multimodal_artifacts",
+    "RetrievedChunk",
+    "RAGQueryRecord",
+    "RAGRadarPoint",
+    "RAGRadarSummary",
+    "RAGRadarEngine",
+    "get_rag_radar_engine",
+    "AttackType",
+    "AdversarialAttack",
+    "AttackResult",
+    "SecurityScorecard",
+    "AdversarialGenerator",
+    "RedTeamRunner",
+    "get_redteam_runner",
 ]
+

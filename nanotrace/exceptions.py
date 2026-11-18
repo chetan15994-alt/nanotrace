@@ -51,3 +51,14 @@ class PromptError(NanoTraceError):
 class FeedbackError(NanoTraceError):
     """Raised when recording or retrieving trace feedback fails."""
     pass
+
+
+class RAGDriftError(NanoTraceError):
+    """Raised when RAG vector embedding analysis or projection fails."""
+    pass
+
+
+class SecurityError(NanoTraceError):
+    """Raised when red-team adversarial evaluation or security gate verification fails."""
+    pass
+

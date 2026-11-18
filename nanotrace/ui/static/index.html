@@ -73,6 +73,14 @@
             <span>Prompt Studio</span>
             <span style="background:var(--accent-primary); color:#ffffff; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px;">STUDIO</span>
           </button>
+          <!-- Phase 5: Safety & RAG Radar Tab -->
+          <button class="nav-tab" id="tabSafetyBtn" onclick="switchView('safety')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>Safety &amp; RAG Radar</span>
+            <span style="background:var(--color-danger); color:#ffffff; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px;">RADAR</span>
+          </button>
         </nav>
       </div>
 
@@ -2030,6 +2038,210 @@ diagnostics = dataset.run_heuristics()</code>
             </div>
           </div>
         </section>
+      </div>
+    </main>
+
+    <!-- VIEW 5: Safety & RAG Radar (Phase 5) -->
+    <main class="view-container" id="viewSafety">
+      <!-- Subnavigation: RAG Radar vs Red-Teaming -->
+      <div class="safety-subnav-bar">
+        <div style="display:flex; gap:8px;">
+          <button class="safety-tab-btn active" id="subtabRadarBtn" onclick="switchSafetyTab('radar')">
+            <span>📡 RAG Hallucination Radar</span>
+          </button>
+          <button class="safety-tab-btn" id="subtabRedTeamBtn" onclick="switchSafetyTab('redteam')">
+            <span>⚔️ Autonomous Red-Teaming</span>
+          </button>
+        </div>
+        <div id="safetySubnavActions" style="display:flex; align-items:center; gap:8px;">
+          <button class="btn btn-secondary" onclick="scanRAGSpansUI()" id="btnScanRAG" style="font-size:0.75rem; padding:4px 10px;">
+            <span>🔄 Scan Spans for RAG</span>
+          </button>
+          <button class="btn btn-primary" onclick="loadRAGRadar()" id="btnRefreshRadar" style="font-size:0.75rem; padding:4px 10px;">
+            <span>Refresh Radar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PANEL 1: RAG Hallucination Radar -->
+      <div class="safety-panel active" id="panelRAGRadar">
+        <!-- RAG Metrics Cards -->
+        <div class="safety-kpi-grid">
+          <div class="safety-kpi-card">
+            <span class="safety-kpi-label">TOTAL QUERIES ANALYZED</span>
+            <span class="safety-kpi-val" id="ragKpiTotal">0</span>
+            <span class="safety-kpi-sub">Across retrieval spans</span>
+          </div>
+          <div class="safety-kpi-card">
+            <span class="safety-kpi-label">MEAN RETRIEVAL SIMILARITY</span>
+            <span class="safety-kpi-val" id="ragKpiMeanSim" style="color:var(--color-primary);">0.000</span>
+            <span class="safety-kpi-sub">Cosine distance to context</span>
+          </div>
+          <div class="safety-kpi-card">
+            <span class="safety-kpi-label">SEMANTIC VOID RATE</span>
+            <span class="safety-kpi-val" id="ragKpiVoidRate" style="color:var(--color-danger);">0.0%</span>
+            <span class="safety-kpi-sub" id="ragKpiVoidCount">0 voids detected (&lt; 0.55 similarity)</span>
+          </div>
+          <div class="safety-kpi-card">
+            <span class="safety-kpi-label">RADAR PROJECTION STATUS</span>
+            <span class="safety-kpi-val" style="color:var(--color-success);" id="ragKpiStatus">Active (PCA)</span>
+            <span class="safety-kpi-sub">Pure-Python 2D space</span>
+          </div>
+        </div>
+
+        <!-- Radar Layout: Scatter Canvas on Left, Voids Table on Right -->
+        <div class="rag-radar-layout">
+          <div class="radar-canvas-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div>
+                <h4 style="margin:0; font-size:0.92rem; color:var(--text-primary); font-weight:700;">Vector Space Projection &amp; Void Horizon</h4>
+                <span style="font-size:0.72rem; color:var(--text-muted);">Points outside red boundary represent ungrounded semantic voids</span>
+              </div>
+              <div class="radar-legend">
+                <span class="legend-item"><span class="legend-dot dot-query"></span> Grounded Query</span>
+                <span class="legend-item"><span class="legend-dot dot-void"></span> Semantic Void (Hallucination Risk)</span>
+              </div>
+            </div>
+
+            <!-- SVG Polar Radar Projection -->
+            <div class="radar-svg-wrapper">
+              <svg id="ragRadarSvg" viewBox="-110 -110 220 220" class="radar-svg">
+                <!-- Concentric Guide Rings -->
+                <circle cx="0" cy="0" r="85" class="radar-ring ring-void" stroke-dasharray="4,4"></circle>
+                <circle cx="0" cy="0" r="55" class="radar-ring"></circle>
+                <circle cx="0" cy="0" r="30" class="radar-ring"></circle>
+                <!-- Crosshairs -->
+                <line x1="-100" y1="0" x2="100" y2="0" class="radar-axis"></line>
+                <line x1="0" y1="-100" x2="0" y2="100" class="radar-axis"></line>
+                <!-- Labels -->
+                <text x="3" y="-87" class="radar-ring-text">Horizon (0.55)</text>
+                <text x="3" y="-57" class="radar-ring-text">0.75 Sim</text>
+                <text x="3" y="-32" class="radar-ring-text">0.90 Sim</text>
+                <!-- Dynamic Points Container -->
+                <g id="radarPointsGroup"></g>
+              </svg>
+              <div id="radarTooltip" class="radar-tooltip" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- Semantic Voids List Card -->
+          <div class="radar-voids-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h4 style="margin:0; font-size:0.92rem; color:var(--text-primary); font-weight:700;">🚨 High-Risk Semantic Voids</h4>
+              <span class="count-badge" id="radarVoidBadge" style="background:rgba(239, 68, 68, 0.2); color:#ef4444;">0 Voids</span>
+            </div>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 12px 0;">
+              Queries with similarity scores below threshold indicate retrieval misses where models hallucinate facts.
+            </p>
+            <div class="radar-voids-scroll" id="radarVoidsListContainer">
+              <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.8rem;">
+                No semantic voids detected. All RAG queries cleanly matched retrieved context.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: Autonomous Red-Teaming -->
+      <div class="safety-panel" id="panelRedTeam" style="display:none;">
+        <div class="redteam-config-grid">
+          <!-- Setup Card -->
+          <div class="redteam-setup-card">
+            <h4 style="margin:0 0 8px 0; font-size:0.92rem; font-weight:700; color:var(--text-primary);">⚔️ Adversarial Attack Configuration</h4>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin:0 0 14px 0;">
+              Test prompts and agents against automated attack payloads to evaluate NanoShield defense and boundary resilience.
+            </p>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label class="form-label" style="font-size:0.75rem;">Target Agent Identifier</label>
+                <input type="text" id="rtTargetInput" class="form-input" value="CustomerSupportAgent (v1.1)" style="font-size:0.8rem; padding:6px 10px; width:100%;">
+              </div>
+
+              <div>
+                <label class="form-label" style="font-size:0.75rem;">Base System Prompt / Instructions (Optional Context)</label>
+                <textarea id="rtPromptInput" class="form-textarea" rows="3" placeholder="Enter base agent instructions to wrap adversarial attacks into..." style="font-size:0.75rem;"></textarea>
+              </div>
+
+              <div>
+                <label class="form-label" style="font-size:0.75rem;">Defense Profile to Evaluate</label>
+                <select id="rtSimSelect" class="form-select" style="font-size:0.78rem;">
+                  <option value="safe">Guarded Model (Aligned + Safety Refusal)</option>
+                  <option value="guarded">NanoShield Active (MaxLoop + PIIRedaction Guardrails)</option>
+                  <option value="vulnerable">Unprotected LLM (Simulated Vulnerable Target)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="form-label" style="font-size:0.75rem; margin-bottom:6px;">Threat Categories to Execute</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.75rem;">
+                  <label><input type="checkbox" id="chkAtkInjection" checked> Prompt Injection</label>
+                  <label><input type="checkbox" id="chkAtkJailbreak" checked> DAN / Jailbreaks</label>
+                  <label><input type="checkbox" id="chkAtkPII" checked> PII &amp; Secret Leaks</label>
+                  <label><input type="checkbox" id="chkAtkLoop" checked> Recursive Loop Bombs</label>
+                  <label><input type="checkbox" id="chkAtkFlood" checked> Context Flooding</label>
+                  <label><input type="checkbox" id="chkAtkHallucination" checked> Hallucination Traps</label>
+                </div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <button class="redteam-btn-run" id="btnRunRedTeam" onclick="runRedTeamUI()">
+                  <span>⚔️ Launch Adversarial Red-Team Suite</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scorecard & Executive Grade -->
+          <div class="redteam-scorecard-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h4 style="margin:0; font-size:0.92rem; font-weight:700; color:var(--text-primary);">Executive Security Scorecard</h4>
+              <span id="rtScanDate" style="font-size:0.72rem; color:var(--text-muted);">Ready to scan</span>
+            </div>
+
+            <!-- Grade HUD Display -->
+            <div class="redteam-grade-banner" id="rtGradeBanner">
+              <div class="grade-circle" id="rtGradeCircle">A+</div>
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);" id="rtTargetDisplay">Ready for Stress Test</span>
+                  <span style="font-size:0.95rem; font-weight:800; color:var(--color-success);" id="rtResilienceDisplay">100.0%</span>
+                </div>
+                <div class="resilience-track" style="margin-top:6px;">
+                  <div class="resilience-bar" id="rtResilienceBar" style="width:100%;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted); margin-top:6px;">
+                  <span id="rtAttacksCountDisplay">0 attacks evaluated</span>
+                  <span id="rtBreachesCountDisplay">0 breaches detected</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attacks Breakdown Table -->
+            <div style="margin-top:14px;">
+              <h5 style="margin:0 0 8px 0; font-size:0.8rem; font-weight:700; color:var(--text-primary);">Detailed Attack Vector Verdicts</h5>
+              <div class="redteam-results-scroll">
+                <table class="redteam-table" id="rtTable">
+                  <thead>
+                    <tr>
+                      <th style="width:30%;">Attack Vector</th>
+                      <th style="width:25%;">Category</th>
+                      <th style="width:25%;">Defense / Guardrail</th>
+                      <th style="width:20%; text-align:center;">Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rtResultsTableBody">
+                    <tr>
+                      <td colspan="4" style="text-align:center; padding:24px; color:var(--text-muted); font-size:0.78rem;">
+                        No red-team scan executed yet. Click "Launch Adversarial Red-Team Suite" above.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
