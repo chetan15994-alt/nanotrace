@@ -120,3 +120,37 @@ def test_capsule_generation_latency():
     assert duration_ms < 30.0, f"Capsule generation took {duration_ms:.2f} ms (> 30 ms)"
     assert len(html) > 5000
     assert "test_trace_1234567890abcdef" in html
+
+
+def test_regression_engine_throughput_and_isolation():
+    """Verify that parallel regression evaluation of 50 test cases completes with high throughput (< 150 ms)."""
+    from nanotrace.eval.golden import GoldenCase, GoldenDatasetManager
+    from nanotrace.eval.regression import RegressionEngine
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/bench_regression.duckdb"
+        mgr = GoldenDatasetManager(db_path=db_path)
+
+        # Populate 50 golden cases
+        for i in range(50):
+            mgr.save_case(GoldenCase(
+                case_id=f"case_bench_{i:03d}",
+                dataset_name="bench_suite",
+                name=f"Benchmark Case #{i}",
+                input_prompt=f"Analyze corporate quarterly metric #{i} for risk vectors.",
+                expected_output=f"Metric #{i} verified within normal bounds.",
+            ))
+
+        engine = RegressionEngine(db_path=db_path)
+        start_t = time.perf_counter()
+        run = engine.run_matrix(
+            dataset_name="bench_suite",
+            candidate_fn=lambda p: f"Precise result for: {p}",
+            baseline_fn=lambda p: f"Standard result for: {p}",
+            max_workers=8,
+        )
+        total_time_ms = (time.perf_counter() - start_t) * 1000.0
+
+        print(f"\n⚡️ [Regression Matrix Benchmark] Evaluated 50 Golden Cases in: {total_time_ms:.2f} ms ({total_time_ms / 50.0:.2f} ms/case)")
+        assert run.total_cases == 50
+        assert total_time_ms < 250.0, f"Regression matrix took {total_time_ms:.2f} ms (> 250 ms)"

@@ -51,6 +51,16 @@
             <span>Architecture &amp; Guide</span>
             <span style="background:var(--accent-primary); color:#ffffff; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px; letter-spacing:0.4px;">INFOGRAPHIC</span>
           </button>
+          <button class="nav-tab" id="tabRegressionBtn" onclick="switchView('regression')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span>Regression Matrix</span>
+            <span style="background:var(--color-warning); color:#1e293b; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:8px; margin-left:4px;">A/B DIFF</span>
+          </button>
         </nav>
       </div>
 
@@ -243,6 +253,9 @@
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="btn btn-replay-inline" onclick="openTimeTravelModal(selectedSpanId)" title="Rewind & fork this execution node">
                 <span>⏱️ Fork &amp; Replay</span>
+              </button>
+              <button class="btn btn-replay-inline" style="background:rgba(234, 179, 8, 0.15); border-color:#eab308; color:#eab308;" onclick="saveSelectedSpanAsGoldenCase()" title="Save as Golden Evaluation Test Case">
+                <span>🌟 Save as Golden</span>
               </button>
               <button class="btn-close" onclick="closeDrawer()">✕</button>
             </div>
@@ -1719,6 +1732,162 @@ diagnostics = dataset.run_heuristics()</code>
             </a>
           </div>
         </div>
+      </div>
+    </main>
+
+    <!-- VIEW 3: Trace-to-Gold Regression Matrix (Phase 3) -->
+    <main class="view-container" id="viewRegression">
+      <div class="regression-layout">
+        <!-- Sidebar: Golden Datasets & Test Fixtures -->
+        <aside class="regression-sidebar">
+          <div class="sidebar-header" style="padding:14px 16px; border-bottom:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:0.92rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                <span>🌟</span> Golden Datasets
+              </span>
+              <span class="badge" id="regDatasetCountBadge" style="background:var(--accent-subtle); color:var(--accent-primary);">0 Sets</span>
+            </div>
+          </div>
+
+          <div style="padding:12px 14px; border-bottom:1px solid var(--border-color);">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Select Dataset</label>
+            <select id="regDatasetSelect" class="db-select-dropdown" style="width:100%; margin-top:4px;" onchange="onRegressionDatasetChange(this.value)">
+              <option value="default">default</option>
+            </select>
+          </div>
+
+          <!-- Golden Cases List -->
+          <div class="gold-cases-scroll" id="goldCasesList">
+            <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+              No golden cases in this dataset.<br>
+              <span style="font-size:0.78rem;">Use <strong>"🌟 Save as Golden"</strong> in any trace to curate test cases.</span>
+            </div>
+          </div>
+
+          <!-- Past Runs Section -->
+          <div style="padding:10px 14px; background:var(--bg-card); border-top:1px solid var(--border-color);">
+            <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Recent Regression Runs</div>
+            <div id="pastRegressionRunsList" style="max-height:160px; overflow-y:auto; font-size:0.82rem;">
+              <div style="color:var(--text-muted); font-size:0.78rem;">No past runs found.</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Panel: A/B Regression Runner & Results Matrix -->
+        <section class="regression-main">
+          <!-- Regression Top Bar -->
+          <div class="regression-header-bar">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <h2 style="font-size:1.15rem; font-weight:700; margin:0;">Prompt Regression Matrix</h2>
+                <span class="badge" id="regRunStatusBadge" style="background:var(--accent-subtle); color:var(--accent-primary);">Ready</span>
+              </div>
+              <p style="margin:2px 0 0 0; font-size:0.82rem; color:var(--text-muted);">
+                A/B test prompt variants and model upgrades against curated golden datasets with automated pass/fail quality gates.
+              </p>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" onclick="runRegressionMatrixUI()" id="btnRunRegression">
+                <span>⚡ Run A/B Regression Suite</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Prompt A vs Prompt B Editor Grid -->
+          <div class="variant-grid">
+            <!-- Variant A: Baseline -->
+            <div class="variant-card">
+              <div class="variant-header">
+                <span class="badge" style="background:rgba(59, 130, 246, 0.15); color:var(--accent-primary);">Variant A: Baseline (v1.0)</span>
+                <select id="regBaseModel" class="replay-select" style="font-size:0.75rem;">
+                  <option value="gpt-4o">gpt-4o (Production)</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+                </select>
+              </div>
+              <textarea id="regBasePrompt" class="variant-textarea" placeholder="Baseline prompt instructions (e.g. Standard detailed generation)..."></textarea>
+            </div>
+
+            <!-- Variant B: Candidate -->
+            <div class="variant-card">
+              <div class="variant-header">
+                <span class="badge" style="background:rgba(16, 185, 129, 0.15); color:var(--color-success);">Variant B: Candidate (v2.0)</span>
+                <select id="regCandModel" class="replay-select" style="font-size:0.75rem;">
+                  <option value="gpt-4o-mini">gpt-4o-mini (Cost-Optimized)</option>
+                  <option value="gpt-4o">gpt-4o</option>
+                  <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                </select>
+              </div>
+              <textarea id="regCandPrompt" class="variant-textarea" placeholder="Candidate prompt instructions (e.g. Strictly concise, bulleted output with tax calculations)..."></textarea>
+            </div>
+          </div>
+
+          <!-- Regression KPI Summary Cards -->
+          <div class="metrics-grid" id="regressionKpiBar" style="margin-bottom:16px;">
+            <div class="metric-card">
+              <div class="metric-label">Pass Rate</div>
+              <div class="metric-value" id="kpiRegPassRate">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Quality Score Δ</div>
+              <div class="metric-value" id="kpiRegScoreDelta">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Token Cost Δ</div>
+              <div class="metric-value" id="kpiRegCostDelta">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Duration Δ</div>
+              <div class="metric-value" id="kpiRegDurDelta">--</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Summary Breakdown</div>
+              <div class="metric-value" id="kpiRegBreakdown" style="font-size:0.95rem; font-weight:600;">--</div>
+            </div>
+          </div>
+
+          <!-- Regression Results Comparison Table -->
+          <div class="regression-table-wrap">
+            <table class="regression-table" id="regressionResultsTable">
+              <thead>
+                <tr>
+                  <th style="width:12%;">Case ID</th>
+                  <th style="width:28%;">Test Case Name</th>
+                  <th style="width:15%;">Latency (A ➔ B)</th>
+                  <th style="width:15%;">Cost (A ➔ B)</th>
+                  <th style="width:15%;">Score (A ➔ B)</th>
+                  <th style="width:15%;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="regressionResultsBody">
+                <tr>
+                  <td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">
+                    Select a golden dataset above and click <strong>"⚡ Run A/B Regression Suite"</strong> to compute matrix diffs.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Side-by-Side Diff Viewer (for selected case) -->
+          <div id="regSelectedCaseDiff" class="replay-diff-viewer" style="display:none; margin-top:16px;">
+            <div class="replay-diff-header" style="justify-content:space-between;">
+              <span id="regDiffCaseTitle" style="font-weight:700;">Case Diff: #gold_case</span>
+              <button class="btn btn-replay-inline" onclick="closeRegressionDiff()" style="padding:2px 8px;">✕ Close Diff</button>
+            </div>
+            <div class="diff-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px;">
+              <div>
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Baseline Output (A)</div>
+                <pre class="diff-pre" id="regDiffBaseText" style="max-height:220px; overflow-y:auto;"></pre>
+              </div>
+              <div>
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Candidate Output (B)</div>
+                <pre class="diff-pre" id="regDiffCandText" style="max-height:220px; overflow-y:auto; border-color:var(--color-success);"></pre>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>

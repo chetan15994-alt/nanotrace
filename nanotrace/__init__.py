@@ -30,6 +30,8 @@ from nanotrace.guardrails.breakers import (
     TimeoutBreaker,
 )
 from nanotrace.core.replay import ReplayEngine, ForkResult
+from nanotrace.eval.golden import GoldenCase, GoldenDatasetManager
+from nanotrace.eval.regression import RegressionEngine, RegressionRun, RegressionCaseResult
 
 _DEFAULT_TRACER: Optional[NanoTracer] = None
 

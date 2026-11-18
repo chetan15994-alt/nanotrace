@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -19,6 +19,8 @@ from nanotrace.storage.duckdb_sink import DuckDBSink
 from nanotrace.eval.heuristics import LocalHeuristicEvaluator
 from nanotrace.export.capsule import generate_trace_capsule
 from nanotrace.core.replay import ReplayEngine
+from nanotrace.eval.golden import GoldenDatasetManager, GoldenCase
+from nanotrace.eval.regression import RegressionEngine
 
 
 class ForkRequest(BaseModel):
@@ -27,6 +29,27 @@ class ForkRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
     mock_response: Optional[str] = None
+
+
+class SaveGoldenRequest(BaseModel):
+    trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    name: Optional[str] = None
+    dataset_name: str = "default"
+    expected_output: Optional[str] = None
+    input_prompt: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class RegressionRunRequest(BaseModel):
+    dataset_name: str = "default"
+    candidate_name: str = "Candidate Prompt (v2)"
+    baseline_name: str = "Baseline Prompt (v1)"
+    candidate_prompt: Optional[str] = None
+    baseline_prompt: Optional[str] = None
+    candidate_model: Optional[str] = None
+    baseline_model: Optional[str] = None
+    fail_under: float = 0.80
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -190,6 +213,97 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             }
         finally:
             sink.close()
+
+    # ==========================================================================
+    # Phase 3: Golden Datasets & Prompt Regression Matrix
+    # ==========================================================================
+
+    @app.get("/api/golden/datasets")
+    def list_golden_datasets(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        mgr = GoldenDatasetManager(db_path=target_db)
+        return mgr.list_datasets()
+
+    @app.get("/api/golden/cases")
+    def get_golden_cases(dataset: str = "default", db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        mgr = GoldenDatasetManager(db_path=target_db)
+        cases = mgr.get_dataset(dataset)
+        return [c.to_dict() for c in cases]
+
+    @app.post("/api/golden/save")
+    def save_golden_case(payload: SaveGoldenRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        mgr = GoldenDatasetManager(db_path=target_db)
+        try:
+            case = mgr.create_case_from_trace(
+                trace_id=payload.trace_id,
+                span_id=payload.span_id,
+                name=payload.name,
+                dataset_name=payload.dataset_name,
+                expected_output=payload.expected_output,
+                input_prompt=payload.input_prompt,
+            )
+            res = case.to_dict()
+            res["status"] = "ok"
+            return res
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.delete("/api/golden/cases/{case_id}")
+    def delete_golden_case(case_id: str, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        mgr = GoldenDatasetManager(db_path=target_db)
+        deleted = mgr.delete_case(case_id)
+        return {"deleted": deleted, "case_id": case_id}
+
+    @app.get("/api/regression/runs")
+    def list_regression_runs(limit: int = 20, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = RegressionEngine(db_path=target_db)
+        return engine.list_runs(limit=limit)
+
+    @app.get("/api/regression/runs/{run_id}")
+    def get_regression_run(run_id: str, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = RegressionEngine(db_path=target_db)
+        data = engine.get_run(run_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Regression run not found")
+        return data
+
+    @app.post("/api/regression/run")
+    def run_regression_matrix(payload: RegressionRunRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = RegressionEngine(db_path=target_db)
+        try:
+            # Custom prompt variants
+            cand_p = payload.candidate_prompt
+            base_p = payload.baseline_prompt
+            cand_m = payload.candidate_model or "gpt-4o-mini"
+            base_m = payload.baseline_model or "gpt-4o"
+
+            def custom_cand_fn(prompt: str) -> str:
+                if cand_p:
+                    return f"[{cand_m} Concise Response]: {cand_p.strip()}: {prompt[:80]}"
+                return f"[{cand_m} Output]: Concise and grounded answer for {prompt[:80]}"
+
+            def custom_base_fn(prompt: str) -> str:
+                if base_p:
+                    return f"[{base_m} Detailed Response]: {base_p.strip()}: {prompt[:80]}"
+                return f"[{base_m} Output]: Standard evaluation response for {prompt[:80]}"
+
+            run = engine.run_matrix(
+                dataset_name=payload.dataset_name,
+                candidate_fn=custom_cand_fn,
+                baseline_fn=custom_base_fn,
+                candidate_name=payload.candidate_name,
+                baseline_name=payload.baseline_name,
+                fail_under=payload.fail_under,
+            )
+            return run.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():

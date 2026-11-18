@@ -83,19 +83,25 @@ function toggleTheme() {
 function switchView(viewName) {
   const tabTracesBtn = document.getElementById("tabTracesBtn");
   const tabGuideBtn = document.getElementById("tabGuideBtn");
+  const tabRegressionBtn = document.getElementById("tabRegressionBtn");
   const viewTraces = document.getElementById("viewTraces");
   const viewGuide = document.getElementById("viewGuide");
+  const viewRegression = document.getElementById("viewRegression");
+
+  [tabTracesBtn, tabGuideBtn, tabRegressionBtn].forEach(b => b && b.classList.remove("active"));
+  [viewTraces, viewGuide, viewRegression].forEach(v => v && v.classList.remove("active"));
 
   if (viewName === "traces") {
-    tabTracesBtn.classList.add("active");
-    tabGuideBtn.classList.remove("active");
-    viewTraces.classList.add("active");
-    viewGuide.classList.remove("active");
-  } else {
-    tabTracesBtn.classList.remove("active");
-    tabGuideBtn.classList.add("active");
-    viewTraces.classList.remove("active");
-    viewGuide.classList.add("active");
+    if (tabTracesBtn) tabTracesBtn.classList.add("active");
+    if (viewTraces) viewTraces.classList.add("active");
+  } else if (viewName === "guide") {
+    if (tabGuideBtn) tabGuideBtn.classList.add("active");
+    if (viewGuide) viewGuide.classList.add("active");
+  } else if (viewName === "regression") {
+    if (tabRegressionBtn) tabRegressionBtn.classList.add("active");
+    if (viewRegression) viewRegression.classList.add("active");
+    loadGoldenDatasets();
+    loadRegressionRuns();
   }
 }
 
@@ -900,5 +906,299 @@ function togglePosterMode(mode) {
       btnL.style.background = "transparent";
       btnL.style.color = "var(--text-muted)";
     }
+  }
+}
+
+// ==========================================================================
+// Phase 3: Golden Datasets & Prompt Regression Matrix Client
+// ==========================================================================
+
+let activeGoldenDataset = "default";
+let currentRegressionResults = [];
+
+async function loadGoldenDatasets() {
+  try {
+    const url = currentDb ? `/api/golden/datasets?db=${encodeURIComponent(currentDb)}` : `/api/golden/datasets`;
+    const res = await fetch(url);
+    const datasets = await res.json();
+    const select = document.getElementById("regDatasetSelect");
+    const badge = document.getElementById("regDatasetCountBadge");
+    if (badge) badge.innerText = `${datasets.length} Set${datasets.length === 1 ? '' : 's'}`;
+
+    if (select) {
+      if (datasets.length === 0) {
+        select.innerHTML = `<option value="default">default (0 cases)</option>`;
+      } else {
+        select.innerHTML = datasets.map(d => 
+          `<option value="${escapeHtml(d.dataset_name)}" ${d.dataset_name === activeGoldenDataset ? 'selected' : ''}>
+            ${escapeHtml(d.dataset_name)} (${d.case_count} cases)
+          </option>`
+        ).join("");
+      }
+    }
+    loadGoldenCases(activeGoldenDataset);
+  } catch (err) {
+    console.error("Failed loading golden datasets:", err);
+  }
+}
+
+function onRegressionDatasetChange(datasetName) {
+  activeGoldenDataset = datasetName;
+  loadGoldenCases(datasetName);
+}
+
+async function loadGoldenCases(datasetName) {
+  const container = document.getElementById("goldCasesList");
+  if (!container) return;
+  try {
+    const url = currentDb 
+      ? `/api/golden/cases?dataset=${encodeURIComponent(datasetName)}&db=${encodeURIComponent(currentDb)}`
+      : `/api/golden/cases?dataset=${encodeURIComponent(datasetName)}`;
+    const res = await fetch(url);
+    const cases = await res.json();
+
+    if (cases.length === 0) {
+      container.innerHTML = `
+        <div style="padding:24px 16px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+          No golden cases in <strong>${escapeHtml(datasetName)}</strong>.<br><br>
+          <span style="font-size:0.78rem;">Open any trace in the waterfall, click on a span, and click <strong>"🌟 Save as Golden"</strong> to curate tests.</span>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = cases.map(c => `
+      <div class="gold-case-card" onclick="selectGoldenCaseForTesting('${c.case_id}')">
+        <div class="gold-case-title">${escapeHtml(c.name)}</div>
+        <div class="gold-case-prompt">${escapeHtml(c.input_prompt || c.expected_output || 'No prompt preview')}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.72rem; color:var(--text-muted);">
+          <span>ID: ${c.case_id.slice(0, 10)}</span>
+          <button class="btn btn-replay-inline" style="padding:1px 6px; font-size:0.68rem;" onclick="event.stopPropagation(); deleteGoldenCaseUI('${c.case_id}')">✕ Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Failed loading golden cases:", err);
+  }
+}
+
+async function saveSelectedSpanAsGoldenCase() {
+  if (!selectedSpanId || !activeTraceSpans) {
+    alert("Please select a span first!");
+    return;
+  }
+  const span = activeTraceSpans.find(s => s.span_id === selectedSpanId);
+  if (!span) return;
+
+  const datasetName = prompt("Enter Golden Dataset name:", activeGoldenDataset || "default");
+  if (!datasetName) return;
+
+  const caseName = prompt("Enter descriptive title for this test case:", `Gold: ${span.name}`);
+  if (!caseName) return;
+
+  try {
+    const url = currentDb ? `/api/golden/save?db=${encodeURIComponent(currentDb)}` : `/api/golden/save`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trace_id: span.trace_id,
+        span_id: span.span_id,
+        name: caseName,
+        dataset_name: datasetName,
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const caseData = await res.json();
+    alert(`🌟 Golden test case #${caseData.case_id} saved to dataset '${datasetName}'!`);
+    loadGoldenDatasets();
+  } catch (err) {
+    alert(`Error saving golden test case: ${err.message}`);
+  }
+}
+
+async function deleteGoldenCaseUI(caseId) {
+  if (!confirm(`Delete golden case ${caseId}?`)) return;
+  try {
+    const url = currentDb ? `/api/golden/cases/${caseId}?db=${encodeURIComponent(currentDb)}` : `/api/golden/cases/${caseId}`;
+    await fetch(url, { method: "DELETE" });
+    loadGoldenCases(activeGoldenDataset);
+  } catch (err) {
+    alert(`Failed deleting case: ${err.message}`);
+  }
+}
+
+async function runRegressionMatrixUI() {
+  const btn = document.getElementById("btnRunRegression");
+  const badge = document.getElementById("regRunStatusBadge");
+  const basePrompt = document.getElementById("regBasePrompt").value;
+  const candPrompt = document.getElementById("regCandPrompt").value;
+  const baseModel = document.getElementById("regBaseModel").value;
+  const candModel = document.getElementById("regCandModel").value;
+
+  if (btn) btn.disabled = true;
+  if (badge) {
+    badge.innerText = "Running Matrix...";
+    badge.style.background = "rgba(59, 130, 246, 0.2)";
+    badge.style.color = "var(--accent-primary)";
+  }
+
+  try {
+    const url = currentDb ? `/api/regression/run?db=${encodeURIComponent(currentDb)}` : `/api/regression/run`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dataset_name: activeGoldenDataset,
+        candidate_name: `Candidate (${candModel})`,
+        baseline_name: `Baseline (${baseModel})`,
+        candidate_prompt: candPrompt,
+        baseline_prompt: basePrompt,
+        candidate_model: candModel,
+        baseline_model: baseModel,
+        fail_under: 0.80,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Regression run failed");
+    }
+
+    const runData = await res.json();
+    displayRegressionRun(runData);
+    loadRegressionRuns();
+  } catch (err) {
+    alert(`Regression Run Error: ${err.message}`);
+    if (badge) {
+      badge.innerText = "Error";
+      badge.style.background = "rgba(239, 68, 68, 0.2)";
+      badge.style.color = "#ef4444";
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function displayRegressionRun(run) {
+  const badge = document.getElementById("regRunStatusBadge");
+  if (badge) {
+    if (run.passed) {
+      badge.innerText = "✅ Quality Gate Passed";
+      badge.style.background = "rgba(16, 185, 129, 0.15)";
+      badge.style.color = "#10b981";
+    } else {
+      badge.innerText = "❌ Quality Gate Breached";
+      badge.style.background = "rgba(239, 68, 68, 0.15)";
+      badge.style.color = "#ef4444";
+    }
+  }
+
+  // KPIs
+  const elPassRate = document.getElementById("kpiRegPassRate");
+  const elScoreDelta = document.getElementById("kpiRegScoreDelta");
+  const elCostDelta = document.getElementById("kpiRegCostDelta");
+  const elDurDelta = document.getElementById("kpiRegDurDelta");
+  const elBreakdown = document.getElementById("kpiRegBreakdown");
+
+  if (elPassRate) elPassRate.innerText = `${(run.pass_rate * 100).toFixed(1)}%`;
+  if (elScoreDelta) {
+    const sDelta = run.score_delta;
+    elScoreDelta.innerText = `${sDelta >= 0 ? '+' : ''}${(sDelta * 100).toFixed(1)}%`;
+    elScoreDelta.style.color = sDelta >= 0 ? "var(--color-success)" : "var(--color-danger)";
+  }
+  if (elCostDelta) {
+    const cDelta = run.avg_cost_delta_pct;
+    elCostDelta.innerText = `${cDelta >= 0 ? '+' : ''}${cDelta.toFixed(1)}%`;
+    elCostDelta.style.color = cDelta <= 0 ? "var(--color-success)" : "var(--color-danger)";
+  }
+  if (elDurDelta) {
+    const dDelta = run.avg_duration_delta_pct;
+    elDurDelta.innerText = `${dDelta >= 0 ? '+' : ''}${dDelta.toFixed(1)}%`;
+  }
+  if (elBreakdown) {
+    elBreakdown.innerHTML = `<span style="color:var(--color-success);">${run.improved_count} Improved</span> • <span style="color:var(--color-danger);">${run.regressed_count} Regressed</span> • ${run.unchanged_count} Flat`;
+  }
+
+  // Table
+  currentRegressionResults = run.results || [];
+  const tbody = document.getElementById("regressionResultsBody");
+  if (!tbody) return;
+
+  if (currentRegressionResults.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No cases evaluated.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = currentRegressionResults.map(r => {
+    let statusClass = "status-badge-unchanged";
+    let icon = "➖";
+    if (r.status === "IMPROVED") { statusClass = "status-badge-improved"; icon = "✅"; }
+    else if (r.status === "REGRESSED") { statusClass = "status-badge-regressed"; icon = "❌"; }
+
+    return `
+      <tr onclick="inspectRegressionCase('${r.case_id}')" style="cursor:pointer;" title="Click to inspect side-by-side completion diff">
+        <td style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">${r.case_id.slice(0, 10)}</td>
+        <td style="font-weight:600;">${escapeHtml(r.case_name)}</td>
+        <td>${r.baseline_duration_ms}ms ➔ ${r.candidate_duration_ms}ms <span style="font-size:0.72rem; color:var(--text-muted);">(${r.duration_delta_pct > 0 ? '+' : ''}${r.duration_delta_pct}%)</span></td>
+        <td>$${r.baseline_cost_usd.toFixed(4)} ➔ $${r.candidate_cost_usd.toFixed(4)} <span style="font-size:0.72rem; color:${r.cost_delta_pct <= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">(${r.cost_delta_pct > 0 ? '+' : ''}${r.cost_delta_pct}%)</span></td>
+        <td>${(r.baseline_score * 100).toFixed(0)}% ➔ ${(r.candidate_score * 100).toFixed(0)}% <span style="font-size:0.72rem; color:${r.score_delta >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">(${r.score_delta >= 0 ? '+' : ''}${(r.score_delta * 100).toFixed(0)}%)</span></td>
+        <td><span class="${statusClass}">${icon} ${r.status}</span></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function inspectRegressionCase(caseId) {
+  const result = currentRegressionResults.find(r => r.case_id === caseId);
+  const diffBox = document.getElementById("regSelectedCaseDiff");
+  if (!result || !diffBox) return;
+
+  diffBox.style.display = "block";
+  document.getElementById("regDiffCaseTitle").innerText = `Completion Diff: ${result.case_name} (${result.status})`;
+  document.getElementById("regDiffBaseText").innerText = result.baseline_output || "(empty baseline output)";
+  document.getElementById("regDiffCandText").innerText = result.candidate_output || "(empty candidate output)";
+  diffBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeRegressionDiff() {
+  const diffBox = document.getElementById("regSelectedCaseDiff");
+  if (diffBox) diffBox.style.display = "none";
+}
+
+async function loadRegressionRuns() {
+  const list = document.getElementById("pastRegressionRunsList");
+  if (!list) return;
+  try {
+    const url = currentDb ? `/api/regression/runs?db=${encodeURIComponent(currentDb)}` : `/api/regression/runs`;
+    const res = await fetch(url);
+    const runs = await res.json();
+    if (runs.length === 0) {
+      list.innerHTML = `<div style="color:var(--text-muted); font-size:0.78rem;">No past runs found.</div>`;
+      return;
+    }
+    list.innerHTML = runs.map(r => `
+      <div style="padding:6px 8px; border-radius:6px; margin-bottom:4px; background:var(--bg-surface); cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="loadAndDisplayRun('${r.run_id}')">
+        <div>
+          <span style="font-weight:600; color:var(--text-primary);">${escapeHtml(r.dataset_name)}</span>
+          <span style="font-size:0.72rem; color:var(--text-muted); display:block;">${r.created_at.slice(0, 16)}</span>
+        </div>
+        <span class="${r.passed ? 'status-badge-improved' : 'status-badge-regressed'}" style="font-size:0.68rem;">
+          ${r.passed ? 'PASS' : 'FAIL'} (${(r.pass_rate * 100).toFixed(0)}%)
+        </span>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Failed loading regression runs:", err);
+  }
+}
+
+async function loadAndDisplayRun(runId) {
+  try {
+    const url = currentDb ? `/api/regression/runs/${runId}?db=${encodeURIComponent(currentDb)}` : `/api/regression/runs/${runId}`;
+    const res = await fetch(url);
+    const run = await res.json();
+    displayRegressionRun(run);
+  } catch (err) {
+    alert(`Failed to load regression run: ${err.message}`);
   }
 }

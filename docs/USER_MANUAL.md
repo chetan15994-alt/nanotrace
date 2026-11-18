@@ -355,18 +355,70 @@ Forked Trace Branch:     └─ [Rewritten Guidance] ➔ [gpt-4o-mini] ➔ [Synt
 
 ### Key Capabilities:
 * **Ancestry Context Preservation**: Reuses cached outputs from all upstream nodes, avoiding redundant LLM consultations and saving up to 90% in token spend.
-* **1-Click Waterfall Forking**: Click **`🔀 Fork`** directly from any waterfall bar in the Hacker Lens or span drawer.
+* **1-Click Waterfall Forking**: Click **`⏱️ Fork & Replay`** directly from any waterfall bar in the Hacker Lens or span drawer.
 * **Model & Temperature Overrides**: Test how `claude-3-5-sonnet`, `gpt-4o-mini`, or `gemini-2.0-flash` perform on identical upstream state.
 * **Side-by-Side Execution Diff**: Review duration delta, token consumption, cost savings, and response diffs in real time.
 
 ---
 
-## 10. Command-Line Reference
+## 10. Trace-to-Gold Regression Suite & Golden Dataset Factory
+
+Production traces are rich in actual user intent, tool calls, and edge cases. NanoTrace allows engineering teams to convert production telemetry into curated **Golden Evaluation Datasets** and run automated A/B prompt regression matrices.
+
+```
+[ Production Traces (DuckDB) ] ──▶ [ 🌟 Save as Golden ] ──▶ [ Golden Dataset Hub ]
+                                                                       │
+┌──────────────────────────────────────────────────────────────────────┘
+▼
+[ Prompt Regression Matrix ]
+  ├─ Variant A (Baseline Prompt / GPT-4o)
+  ├─ Variant B (Candidate Prompt / GPT-4o-Mini)
+  └─ Parallel Scoring Engine (Token Jaccard & Levenshtein Ratio)
+        │
+        ▼
+[ Automated CI/CD Gate ] ──▶ Pass Rate ≥ 80%? ──▶ Exit 0 (PASS) / Exit 1 (BREACH)
+```
+
+### Key Features:
+* **1-Click Golden Extraction**: Click **`🌟 Save as Golden`** directly in the span inspection drawer to save input prompt payloads and verified outputs into DuckDB (`golden_cases` table).
+* **Multi-Threaded Parallel Regression Matrix**: Run A/B test matrices comparing candidate prompt instructions or model variants against baseline completions across full golden datasets.
+* **Zero-Cost Local Scoring**: Computes token-level Jaccard similarity and Levenshtein distance locally in microseconds without requiring paid judge model API calls.
+* **Pareto Status Classification**: Automatically marks each evaluated case as `✅ IMPROVED`, `❌ REGRESSED`, or `➖ UNCHANGED`.
+
+---
+
+## 11. Automated CI/CD Quality Gate CLI (`nanotrace test`)
+
+Integrate continuous AI evaluation directly into GitHub Actions, GitLab CI, or pre-commit hooks to prevent prompt regressions from hitting production:
+
+```bash
+# Run automated regression gate against a golden dataset with an 80% pass threshold
+nanotrace test --dataset financial_benchmarks --fail-under 0.80
+
+# List all curated golden datasets
+nanotrace golden list
+
+# Export golden dataset to JSONL for portability
+nanotrace golden export --dataset financial_benchmarks --output cases.jsonl
+
+# Save a golden case directly from a CLI trace
+nanotrace golden save --span-id <span_id> --dataset prod_gold --name "Tax Edge Case"
+```
+
+* **Deterministic CI/CD Integration**: Exits with code `0` when `pass_rate >= fail_under`, and exits with code `1` on regression breach, immediately failing pipeline builds.
+
+---
+
+## 12. Command-Line Reference
 
 | Command | Action | Key Options |
 |---|---|---|
 | `nanotrace run <script.py>` | Zero-code auto-pilot runner: executes and traces any script with `< 15 µs` overhead | `python <script.py>`, `--db <path>`, `--ui`, `--capsule` |
 | `nanotrace export-capsule <id>` | Export single self-contained standalone HTML capsule | `-o <path.html>`, `--db <path>`, `--open` |
+| `nanotrace test --dataset <name>` | Automated CI/CD quality gate: runs prompt regression matrix; exits code 0/1 | `--dataset <name>`, `--fail-under <pct>`, `--db <path>` |
+| `nanotrace golden list` | List all curated golden evaluation datasets and case counts | `--db <path>` |
+| `nanotrace golden save` | Extract and save a golden benchmark case from a recorded trace or span | `--span-id <id>`, `--dataset <name>`, `--name <title>` |
+| `nanotrace golden export` | Export a golden dataset to a portable JSONL benchmark file | `--dataset <name>`, `--output <file.jsonl>` |
 | `nanotrace ui` | Start the local interactive dashboard | `--port 7777`, `--host 127.0.0.1`, `--db <path>` |
 | `nanotrace demo` | Run all 6 showcase agents + validator | `--ui` (auto-launch browser), `--port 7777` |
 | `nanotrace stats` | Print aggregate metrics table | `--db <path>` |
@@ -377,7 +429,7 @@ Forked Trace Branch:     └─ [Rewritten Guidance] ➔ [gpt-4o-mini] ➔ [Synt
 
 ---
 
-## 9. Quick Verification Test
+## 13. Quick Verification Test
 
 To verify your installation and generate a complete sample database of traces across all 6 agent patterns:
 

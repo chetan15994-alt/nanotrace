@@ -351,7 +351,7 @@ Debugging broken agent steps traditionally requires re-running the entire workfl
 NanoTrace includes an in-process **Time-Travel Debugger & Replay Engine**:
 
 * **Inspect Upstream Lineage**: Rewind any recorded agent trace to any intermediate decision node and inspect the exact upstream causal path.
-* **1-Click "Replay & Fork"**: Click **`🔀 Fork`** directly on any span in the waterfall timeline or drawer.
+* **1-Click "Replay & Fork"**: Click **`⏱️ Fork & Replay`** directly on any span in the waterfall timeline or drawer.
 * **Tweak & Re-Execute in Microseconds**: Edit prompt instructions, tweak tool arguments, adjust temperature, or swap models (e.g. switch `gpt-4o` to `gpt-4o-mini` or `claude-3-5-sonnet`) without touching source code.
 * **90% Token Savings**: The forked branch re-executes only the target step and subsequent lineage while reusing cached upstream outputs.
 * **Live Before-and-After Execution Diff**: View side-by-side execution duration, token counts, cost delta, and a full unified diff of model responses.
@@ -375,6 +375,64 @@ print(f"Status: {result.status}")
 print(f"Cost Reduction: ${result.original_cost_usd:.5f} -> ${result.forked_cost_usd:.5f}")
 print(f"Diff Summary:\n{result.diff_summary}")
 ```
+
+---
+
+## Trace-to-Gold Regression Suite & Golden Dataset Factory
+
+Transform messy production execution traces directly into curated golden benchmark datasets for continuous evaluation and prompt regression testing.
+
+* **1-Click Golden Curation**: Click **`🌟 Save as Golden`** on any span in the dashboard drawer to capture input prompt, context chunks, and gold completions directly into DuckDB (`golden_cases` table).
+* **Zero-Cost Local Scoring**: Parallel regression runner measures semantic drift, token Jaccard similarity, and Levenshtein edit distance without cloud dependencies or paid judge models.
+* **Prompt Regression Matrix**: Run A/B evaluation matrices between baseline prompts (v1.0) and candidate variants (v2.0) across entire golden datasets with multi-threaded parallel execution.
+* **Automated Status Classification**: Cases are categorized into `✅ IMPROVED`, `❌ REGRESSED`, or `➖ UNCHANGED` based on Pareto cost/quality thresholds.
+
+### Python API
+
+```python
+from nanotrace.eval.golden import GoldenCase, GoldenDatasetManager
+from nanotrace.eval.regression import RegressionEngine
+
+# 1. Curate golden test cases
+mgr = GoldenDatasetManager(db_path="./.traces/nanotrace.duckdb")
+mgr.save_case(GoldenCase(
+    case_id="tc_financial_01",
+    dataset_name="financial_benchmarks",
+    name="EBITDA Margin Calculation",
+    input_prompt="Compute EBITDA margin for Q2 given revenue $50M and expenses $38M.",
+    expected_output="EBITDA margin is 24.0% ($12M EBITDA on $50M revenue).",
+))
+
+# 2. Run parallel A/B regression test matrix
+engine = RegressionEngine(db_path="./.traces/nanotrace.duckdb")
+run = engine.run_matrix(
+    dataset_name="financial_benchmarks",
+    candidate_fn=lambda p: f"[GPT-4o-Mini]: 24.0% EBITDA margin for {p}",
+    baseline_fn=lambda p: f"[GPT-4o]: EBITDA margin calculation: 24.0%",
+    fail_under=0.80, # 80% pass threshold
+)
+
+print(f"Pass Rate: {run.pass_rate * 100:.1f}% | Quality Gate: {'PASSED' if run.passed else 'FAILED'}")
+```
+
+---
+
+## Automated CI/CD Quality Gate CLI (`nanotrace test`)
+
+Enforce zero-regression standards in GitHub Actions and continuous delivery pipelines before promoting new prompts or model versions to production.
+
+```bash
+# Run regression tests against a golden dataset with an 85% pass threshold
+nanotrace test --dataset financial_benchmarks --fail-under 0.85
+
+# Manage golden datasets directly from the terminal
+nanotrace golden list
+nanotrace golden export --dataset financial_benchmarks --output golden_cases.jsonl
+nanotrace golden save --span-id <span_id> --dataset production_gold --name "Tax Case #1"
+```
+
+* **Deterministic Exit Codes**: Exits with code `0` when the quality gate passes; exits with code `1` if regressions exceed the threshold, immediately halting breaking PR deployments.
+* **Rich Visual Reporting**: Displays a formatted terminal scorecard with Latency Δ, Cost Δ, Score Δ, and status indicators.
 
 ---
 
@@ -414,6 +472,10 @@ print(df)
 | `nanotrace run <script.py>` | Zero-code auto-pilot runner: executes and traces any script with `< 15 µs` overhead |
 | `nanotrace run python <script.py>` | Auto-trace script with explicit Python invocation syntax |
 | `nanotrace export-capsule <trace_id>` | Export single self-contained standalone HTML capsule (`.ntrace.html`) |
+| `nanotrace test --dataset <name>` | Automated CI/CD quality gate: runs prompt regression matrix; exits code 0/1 |
+| `nanotrace golden list` | List all curated golden evaluation datasets and case counts |
+| `nanotrace golden save` | Extract and save a golden benchmark case from a recorded trace or span |
+| `nanotrace golden export` | Export a golden dataset to a portable JSONL benchmark file |
 | `nanotrace demo` | Run the complete 6-agent showcase suite and 10-checkpoint validation harness |
 | `nanotrace demo --ui` | Run the showcase suite and immediately launch the interactive dashboard |
 | `nanotrace ui` | Start the local web dashboard on `http://127.0.0.1:7777` |

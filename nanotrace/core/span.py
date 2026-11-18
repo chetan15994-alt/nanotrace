@@ -118,6 +118,18 @@ class Span:
         return self.duration_ns / 1_000_000.0
 
     @property
+    def tokens_per_second(self) -> float:
+        """Calculate throughput in tokens/second (TPS)."""
+        explicit = self.attributes.get(GenAIAttributes.USAGE_TOKENS_PER_SECOND)
+        if explicit is not None:
+            return float(explicit)
+        out_tok = int(self.attributes.get(GenAIAttributes.USAGE_OUTPUT_TOKENS) or 0)
+        dur_s = self.duration_ms / 1000.0
+        if out_tok > 0 and dur_s > 0.001:
+            return round(out_tok / dur_s, 2)
+        return 0.0
+
+    @property
     def is_finished(self) -> bool:
         """Returns True if the span has been ended."""
         return self.end_time_ns is not None

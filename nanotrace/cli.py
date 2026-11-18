@@ -337,5 +337,145 @@ def run_demo(
         start_ui(db_path=DB_PATH, port=port)
 
 
+# ==============================================================================
+# Phase 3: Trace-to-Gold Regression Suite & CI/CD Quality Gate
+# ==============================================================================
+
+@app.command("test")
+def run_regression_tests(
+    dataset: str = typer.Option("default", "--dataset", "-s", help="Golden dataset name to evaluate against"),
+    fail_under: float = typer.Option(0.80, "--fail-under", "-f", help="Minimum passing score/pass-rate threshold (0.0 to 1.0)"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Run automated CI/CD prompt regression matrix testing against a golden dataset."""
+    from nanotrace.eval.regression import RegressionEngine, RegressionError
+
+    engine = RegressionEngine(db_path=db_path)
+    console.print(f"\n🧪 [bold cyan]NanoTrace Regression Suite[/bold cyan]: Evaluating dataset '[bold]{dataset}[/bold]' (threshold: {fail_under:.2f})\n")
+
+    try:
+        run = engine.run_matrix(
+            dataset_name=dataset,
+            fail_under=fail_under,
+        )
+    except RegressionError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+    table = Table(title=f"📊 Regression Matrix Results: {run.candidate_name} vs {run.baseline_name}", border_style="cyan")
+    table.add_column("Case ID", style="dim", no_wrap=True)
+    table.add_column("Case Name", style="bold")
+    table.add_column("Latency Δ", justify="right")
+    table.add_column("Cost Δ", justify="right")
+    table.add_column("Score (Base ➔ Cand)", justify="center")
+    table.add_column("Status", justify="center")
+
+    for r in run.results:
+        status_styled = (
+            f"[green]✅ {r.status}[/green]" if r.status == "IMPROVED"
+            else f"[red]❌ {r.status}[/red]" if r.status == "REGRESSED"
+            else f"[yellow]➖ {r.status}[/yellow]"
+        )
+        lat_styled = f"{r.duration_delta_pct:+.1f}%"
+        cost_styled = f"{r.cost_delta_pct:+.1f}%"
+        score_styled = f"{r.baseline_score:.2f} ➔ {r.candidate_score:.2f} ({r.score_delta:+.2f})"
+
+        table.add_row(
+            r.case_id,
+            r.case_name[:35],
+            lat_styled,
+            cost_styled,
+            score_styled,
+            status_styled,
+        )
+
+    console.print(table)
+
+    summary_text = (
+        f"Total Cases: [bold]{run.total_cases}[/bold] | "
+        f"Improved: [green]{run.improved_count}[/green] | "
+        f"Regressed: [red]{run.regressed_count}[/red] | "
+        f"Unchanged: [yellow]{run.unchanged_count}[/yellow]\n"
+        f"Average Score: [bold]{run.avg_score_candidate:.3f}[/bold] (Δ {run.score_delta:+.3f}) | "
+        f"Pass Rate: [bold]{run.pass_rate * 100:.1f}%[/bold] (Threshold: {fail_under * 100:.0f}%)"
+    )
+
+    if run.passed:
+        console.print(Panel(summary_text, title="[bold green]✅ QUALITY GATE PASSED[/bold green]", border_style="green"))
+    else:
+        console.print(Panel(summary_text, title="[bold red]❌ QUALITY GATE BREACHED[/bold red]", border_style="red"))
+        raise typer.Exit(code=1)
+
+
+golden_app = typer.Typer(help="Manage golden evaluation test datasets.")
+
+
+@golden_app.command("list")
+def list_golden_datasets(
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """List all golden evaluation datasets and test case counts."""
+    from nanotrace.eval.golden import GoldenDatasetManager
+
+    mgr = GoldenDatasetManager(db_path=db_path)
+    datasets = mgr.list_datasets()
+    if not datasets:
+        console.print("[yellow]No golden datasets found in database.[/yellow]")
+        return
+
+    table = Table(title="🌟 Golden Evaluation Datasets", border_style="yellow")
+    table.add_column("Dataset Name", style="bold cyan")
+    table.add_column("Cases", justify="right", style="green")
+    table.add_column("First Created", style="dim")
+    table.add_column("Last Updated", style="dim")
+
+    for d in datasets:
+        table.add_row(d["dataset_name"], str(d["case_count"]), str(d["created_at"])[:19], str(d["updated_at"])[:19])
+
+    console.print(table)
+
+
+@golden_app.command("save")
+def save_golden_case(
+    trace_id: str = typer.Option(..., "--trace-id", "-t", help="Source trace ID to extract"),
+    span_id: Optional[str] = typer.Option(None, "--span-id", "-s", help="Specific span ID (defaults to root span)"),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Descriptive name for the test case"),
+    dataset: str = typer.Option("default", "--dataset", help="Target golden dataset name"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Extract a golden test case from an existing trace."""
+    from nanotrace.eval.golden import GoldenDatasetManager
+
+    mgr = GoldenDatasetManager(db_path=db_path)
+    try:
+        case = mgr.create_case_from_trace(
+            trace_id=trace_id,
+            span_id=span_id,
+            name=name,
+            dataset_name=dataset,
+        )
+        console.print(f"[green]✓ Saved golden test case [bold]{case.case_id}[/bold] ('{case.name}') in dataset '{dataset}'![/green]")
+    except Exception as e:
+        console.print(f"[red]Error saving golden test case: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@golden_app.command("export")
+def export_golden_dataset(
+    dataset: str = typer.Option("default", "--dataset", "-s", help="Dataset name to export"),
+    output: str = typer.Option(..., "--output", "-o", help="Output JSONL file path"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Export a golden evaluation dataset to JSONL."""
+    from nanotrace.eval.golden import GoldenDatasetManager
+
+    mgr = GoldenDatasetManager(db_path=db_path)
+    count = mgr.export_jsonl(dataset_name=dataset, filepath=output)
+    console.print(f"[green]✓ Exported {count} golden test cases from dataset '{dataset}' to [bold]{output}[/bold][/green]")
+
+
+app.add_typer(golden_app, name="golden")
+
+
 if __name__ == "__main__":
     app()

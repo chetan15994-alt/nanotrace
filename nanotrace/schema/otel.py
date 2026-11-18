@@ -32,6 +32,9 @@ class GenAIAttributes:
     USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
     USAGE_TOTAL_TOKENS = "gen_ai.usage.total_tokens"
     USAGE_COST_USD = "gen_ai.usage.cost_usd"
+    USAGE_TOKENS_PER_SECOND = "gen_ai.usage.tokens_per_second"
+    USAGE_TIME_TO_FIRST_TOKEN_MS = "gen_ai.usage.time_to_first_token_ms"
+    SYSTEM_VRAM_MB = "gen_ai.system.vram_mb"
 
     # Agent & Orchestration
     AGENT_NAME = "gen_ai.agent.name"
