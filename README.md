@@ -229,7 +229,7 @@ for r in results:
 
 ---
 
-## Local Web Dashboard
+## Local Web Dashboard & Dual-Audience Lenses
 
 Launch the zero-dependency interactive dashboard:
 
@@ -239,11 +239,57 @@ nanotrace ui --port 7777
 
 Navigate to `http://127.0.0.1:7777` in your browser.
 
-* **Waterfall Timeline Ruler**: Millisecond-accurate span visualization.
+* **Dual-Audience Lens Toggle**: Instantly switch between:
+  * **👔 Business Lens**: Executive scorecard, conversational chat bubbles, user intent tracking, plain-English tool summaries, and turnaround cost metrics.
+  * **🛠️ Hacker Lens**: Millisecond/microsecond waterfall Gantt chart, hierarchical span trees, W3C TraceContext headers, and raw OpenTelemetry GenAI semantic JSON attributes.
+* **1-Click Standalone HTML Capsule Export**: Export any execution run as a zero-dependency `.ntrace.html` file that opens offline in any browser without Python or Docker.
 * **Dynamic Database Switcher**: Toggle between `.traces/nanotrace.duckdb` and `.traces/showcase.duckdb` directly from the navigation bar.
 * **Span Inspection Drawer**: View full prompt payloads, completion outputs, token usage, and exact USD costs.
-* **Light and Dark Themes**: High-contrast, accessibility-tested interface.
+* **Light and Dark Themes**: High-contrast, accessibility-tested interface with persistent preferences.
 * **1-Click Heuristic Diagnostics**: Run evaluation checks directly from the UI.
+
+---
+
+## Zero-Code Auto-Pilot CLI Runner
+
+Trace any existing Python agent or script without modifying code or adding imports:
+
+```bash
+# Auto-trace any existing Python script
+nanotrace run python my_agent.py
+
+# Or directly:
+nanotrace run my_agent.py --iterations 5
+
+# Auto-trace and immediately open the dashboard:
+nanotrace run my_agent.py --ui
+
+# Auto-trace and generate a standalone offline HTML capsule:
+nanotrace run my_agent.py --capsule
+```
+
+NanoTrace auto-instruments `openai`, `anthropic`, and `litellm` SDK calls on the fly, logs all spans to DuckDB with `< 15 µs` ring-buffer enqueue latency, and displays a Rich execution telemetry table upon exit.
+
+---
+
+## 1-Click Standalone HTML Capsule (`.ntrace.html`)
+
+Share complete agent execution traces with executives, PMs, and external clients as a single self-contained file:
+
+```bash
+# Export specific trace to standalone HTML capsule
+nanotrace export-capsule <trace_id> -o my_trace.ntrace.html
+
+# Open directly in default web browser
+nanotrace export-capsule <trace_id> --open
+
+# Or via standard export command
+nanotrace export --trace-id <trace_id> --format html -o trace.html
+```
+
+* **Zero Infrastructure Required**: Opens in Google Chrome, Safari, Firefox, or Edge via double-click (`file:///...`).
+* **Zero External Network Calls**: Embedded CSS, JS, and JSON payload—100% compliant with air-gapped corporate environments.
+* **Interactive Features Included**: Dual-audience lens toggle (Business vs Hacker), theme toggle, waterfall timeline, and span drawer all function offline.
 
 ---
 
@@ -280,12 +326,16 @@ print(df)
 
 | Command | Description |
 | :--- | :--- |
+| `nanotrace run <script.py>` | Zero-code auto-pilot runner: executes and traces any script with `< 15 µs` overhead |
+| `nanotrace run python <script.py>` | Auto-trace script with explicit Python invocation syntax |
+| `nanotrace export-capsule <trace_id>` | Export single self-contained standalone HTML capsule (`.ntrace.html`) |
 | `nanotrace demo` | Run the complete 6-agent showcase suite and 10-checkpoint validation harness |
 | `nanotrace demo --ui` | Run the showcase suite and immediately launch the interactive dashboard |
 | `nanotrace ui` | Start the local web dashboard on `http://127.0.0.1:7777` |
 | `nanotrace stats` | Display aggregate execution metrics (traces, spans, tokens, latency, cost) |
 | `nanotrace query "<SQL>"` | Execute analytical SQL queries directly against the DuckDB spans table |
 | `nanotrace export --output traces.parquet` | Export all traces to an optimized ZSTD-compressed Parquet dataset |
+| `nanotrace export --format html` | Export trace to standalone HTML capsule |
 | `nanotrace ingest <file>` | Ingest and self-heal external JSON/JSONL/stdout trace logs |
 | `nanotrace eval` | Run local heuristic diagnostics on stored traces |
 

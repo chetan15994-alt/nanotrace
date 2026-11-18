@@ -520,6 +520,169 @@ body {
   filter: brightness(0.96);
 }
 
+.btn-capsule {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-success);
+  border-color: rgba(16, 185, 129, 0.35);
+  font-weight: 600;
+}
+
+.btn-capsule:hover {
+  background: rgba(16, 185, 129, 0.22);
+  color: var(--color-success);
+}
+
+/* Dual-Audience Lens Toggle */
+.lens-toggle-pill {
+  display: inline-flex;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.lens-pill-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.lens-pill-btn:hover {
+  color: var(--text-primary);
+}
+
+.lens-pill-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* Business Lens Canvas */
+.business-canvas {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.biz-scorecard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.biz-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.biz-metric-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.biz-metric-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.biz-card-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.biz-chat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.biz-chat-card:hover {
+  border-color: var(--border-strong);
+}
+
+.biz-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.biz-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.biz-tag-user { color: #3b82f6; }
+.biz-tag-agent { color: #a855f7; }
+.biz-tag-tool { color: #f59e0b; }
+.biz-tag-output { color: #10b981; }
+
+.biz-body {
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.biz-body.resolution {
+  border-left: 4px solid var(--color-success);
+}
+
+.biz-chips {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.biz-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-subtle);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
 /* Evaluation Diagnostic Card */
 .eval-card {
   margin: 14px 20px 0 20px;

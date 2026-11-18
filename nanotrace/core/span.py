@@ -27,6 +27,13 @@ def generate_span_id() -> str:
     return os.urandom(8).hex()
 
 
+@dataclass(frozen=True)
+class SpanContext:
+    """Standard OpenTelemetry span context container."""
+    trace_id: str
+    span_id: str
+
+
 @dataclass
 class SpanEvent:
     """An in-span event (e.g. streaming token chunk, tool checkpoint)."""
@@ -57,6 +64,11 @@ class Span:
     status_message: Optional[str] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
     events: List[SpanEvent] = field(default_factory=list)
+
+    @property
+    def context(self) -> SpanContext:
+        """Returns OpenTelemetry SpanContext container."""
+        return SpanContext(trace_id=self.trace_id, span_id=self.span_id)
 
     @property
     def duration_ns(self) -> int:

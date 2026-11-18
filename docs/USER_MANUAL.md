@@ -260,29 +260,32 @@ flowchart TD
 
 ---
 
-## 7. Interactive Dashboard: Component Architecture
+## 7. Interactive Dashboard: Dual-Audience Lenses & Standalone Capsule
 
-The local web dashboard (`nanotrace ui`) provides zero-dependency visual debugging:
+The local web dashboard (`nanotrace ui`) provides zero-dependency visual debugging with instant switching between executive and engineering lenses:
+
+* **👔 Business Lens**: Tailored for Product Managers, executives, and non-engineers. Features high-level scorecards (operational health, turnaround time, economic spend, token consumption), clean conversational user objective cards, and plain-English tool action summaries.
+* **🛠️ Hacker Lens**: Tailored for AI engineers and performance specialists. Features millisecond/microsecond waterfall timeline Gantt charts with adaptive unit scaling (`µs` vs `ms`), hierarchical span trees with parent-child indentation, and comprehensive OpenTelemetry GenAI inspection drawers.
+* **📦 1-Click Standalone Capsule Export (`.ntrace.html`)**: With a single click, package the entire execution trace into a self-contained offline HTML file that opens anywhere without Python, Docker, or server infrastructure.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ NanoTrace v0.1.0  [ 🦆 showcase.duckdb (262 spans) ▾ ]  [☀️/🌙]  [Refresh]   │
+│ NanoTrace v0.1.0  [ 🦆 showcase.duckdb ▾ ] [👔 Business | 🛠️ Hacker] [☀️/🌙]│
 ├─────────────────┬──────────────────┬──────────────────┬─────────────────────┤
 │ Total Traces: 51│ Total Spans: 262 │ Tokens: 16,462   │ Est. Spend: $0.0625 │
 ├─────────────────┴──────────────────┴──────────────────┴─────────────────────┤
-│ TRACES EXPLORER │ WATERFALL TIMELINE RULER & SPAN INSPECTION                │
-│ ┌─────────────┐ │ 0ms               25ms               50ms            75ms │
-│ │Search: [   ]│ │ ├───────────────────┼──────────────────┼────────────────┤ │
-│ ├─────────────┤ │ ▼ StartupOrchestratorSupervisor                 (78.2 ms) │
-│ │StartupSuper │ │   ├── chat gpt-4o-mini (Router)                 (12.4 ms) │
-│ │Duration:78ms│ │   ▼ TechnicalArchitectAgent                     (42.1 ms) │
-│ │Spans: 7     │ │     ├── tool: benchmark_latency_db              (22.0 ms) │
-│ │Status: OK   │ │     └── chat gpt-4o (Architecture Spec)         (18.5 ms) │
-│ ├─────────────┤ │                                                           │
-│ │CodeReview   │ │ SPAN DETAIL DRAWER: tool: benchmark_latency_db            │
-│ │Duration:56ms│ │ • Provider: custom  • Model: DuckDB  • Status: OK         │
-│ │Status: OK   │ │ • Arguments: {"engines": ["DuckDB", "Postgres"]}          │
-│ └─────────────┘ │ • Output: {"DuckDB_p50_ms": 1.2, "PostgreSQL_p50_ms": 142}│
+│ TRACES EXPLORER │ DUAL-AUDIENCE WORKSPACE & STANDALONE CAPSULE EXPORT       │
+│ ┌─────────────┐ │ [📥 Export Capsule (.html)] [🛡️ Run Evals] [📋 Copy ID]   │
+│ │Search: [   ]│ │ ───────────────────────────────────────────────────────── │
+│ ├─────────────┤ │ EXECUTIVE SCORECARD (Business Lens):                      │
+│ │StartupSuper │ │ • Status: Operational OK  • Latency: 78.2 ms              │
+│ │Duration:78ms│ │ • LLM Calls: 4 calls      • Spend: $0.0028                │
+│ │Spans: 7     │ │                                                           │
+│ │Status: OK   │ │ 👤 User Objective: "Analyze market expansion in APAC"     │
+│ ├─────────────┤ │ 🛠️ Tool Action: tool: fetch_market_intelligence (22 ms)   │
+│ │CodeReview   │ │ 🧠 AI Deliberation: gpt-4o (Strategic Synthesis)          │
+│ │Duration:56ms│ │ 🎯 Final Deliverable: "APAC expansion strategy ready..."  │
+│ └─────────────┘ │                                                           │
 └─────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
@@ -292,11 +295,13 @@ The local web dashboard (`nanotrace ui`) provides zero-dependency visual debuggi
 
 | Command | Action | Key Options |
 |---|---|---|
+| `nanotrace run <script.py>` | Zero-code auto-pilot runner: executes and traces any script with `< 15 µs` overhead | `python <script.py>`, `--db <path>`, `--ui`, `--capsule` |
+| `nanotrace export-capsule <id>` | Export single self-contained standalone HTML capsule | `-o <path.html>`, `--db <path>`, `--open` |
 | `nanotrace ui` | Start the local interactive dashboard | `--port 7777`, `--host 127.0.0.1`, `--db <path>` |
 | `nanotrace demo` | Run all 6 showcase agents + validator | `--ui` (auto-launch browser), `--port 7777` |
 | `nanotrace stats` | Print aggregate metrics table | `--db <path>` |
 | `nanotrace query` | Execute analytical SQL on spans | `--db <path>`, `<SQL string>` |
-| `nanotrace export` | Export traces to compressed Parquet | `--output traces.parquet`, `--db <path>` |
+| `nanotrace export` | Export traces to compressed Parquet or HTML capsule | `--output traces.parquet`, `--format html`, `--db <path>` |
 | `nanotrace ingest` | Self-heal and ingest external JSON logs | `<file_path>`, `--db <path>` |
 | `nanotrace eval` | Run zero-cost heuristic diagnostics | `--db <path>` |
 

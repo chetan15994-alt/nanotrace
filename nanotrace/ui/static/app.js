@@ -8,6 +8,7 @@ let activeTraceId = null;
 let activeTraceSpans = [];
 let selectedSpanId = null;
 let currentDb = ""; // empty means server default
+let currentLens = localStorage.getItem("nanotrace_active_lens") || "business";
 
 // Initialize on DOM ready
 document.addEventListener("DOMContentLoaded", async () => {
@@ -127,6 +128,18 @@ async function loadTraces() {
     const res = await fetch(url);
     currentTraces = await res.json();
     renderTraceList(currentTraces);
+
+    if (!activeTraceId && currentTraces.length > 0) {
+      if (window.location.hash.includes("trace=")) {
+        const hashId = window.location.hash.split("trace=")[1].split("&")[0];
+        const match = currentTraces.find(t => t.trace_id === hashId);
+        if (match) {
+          selectTrace(match.trace_id);
+          return;
+        }
+      }
+      selectTrace(currentTraces[0].trace_id);
+    }
   } catch (err) {
     listEl.innerHTML = `<div class="empty-state">Unable to read traces from DuckDB.</div>`;
   }
@@ -201,10 +214,218 @@ async function selectTrace(traceId) {
       <span>Total latency: ${rootSpan ? rootSpan.duration_ms : 0} ms</span>
     `;
 
-    renderWaterfall(activeTraceSpans);
+    const lensGroup = document.getElementById("lensToggleGroup");
+    if (lensGroup) lensGroup.style.display = "inline-flex";
+    updateLensButtons();
+    renderActiveLens();
   } catch (err) {
     console.error("Error loading trace detail", err);
   }
+}
+
+// ==========================================================================
+// Dual-Audience Lens Management (Business vs Hacker)
+// ==========================================================================
+
+function switchLens(lensName) {
+  currentLens = lensName;
+  localStorage.setItem("nanotrace_active_lens", lensName);
+  updateLensButtons();
+  renderActiveLens();
+}
+
+function updateLensButtons() {
+  const btnBiz = document.getElementById("lensBtnBiz");
+  const btnHacker = document.getElementById("lensBtnHacker");
+  if (btnBiz && btnHacker) {
+    if (currentLens === "business") {
+      btnBiz.classList.add("active");
+      btnHacker.classList.remove("active");
+    } else {
+      btnBiz.classList.remove("active");
+      btnHacker.classList.add("active");
+    }
+  }
+}
+
+function renderActiveLens() {
+  const bizCanvas = document.getElementById("businessCanvas");
+  const waterfallCanvas = document.getElementById("waterfallCanvas");
+  if (!bizCanvas || !waterfallCanvas) return;
+
+  if (currentLens === "business") {
+    waterfallCanvas.style.display = "none";
+    bizCanvas.style.display = "flex";
+    renderBusinessLens(activeTraceSpans);
+  } else {
+    bizCanvas.style.display = "none";
+    waterfallCanvas.style.display = "block";
+    renderWaterfall(activeTraceSpans);
+  }
+}
+
+function renderBusinessLens(spans) {
+  const canvas = document.getElementById("businessCanvas");
+  if (!spans || spans.length === 0) {
+    canvas.innerHTML = `<div class="empty-state">No spans found for this trace.</div>`;
+    return;
+  }
+
+  const rootSpan = spans.find(s => !s.parent_span_id) || spans[0];
+  const totalMs = rootSpan ? rootSpan.duration_ms : 0;
+  const totalTokens = spans.reduce((acc, s) => acc + Number(s.gen_ai_total_tokens || 0), 0);
+  const totalCost = spans.reduce((acc, s) => acc + Number(s.gen_ai_cost_usd || 0), 0);
+  const toolCount = spans.filter(s => s.gen_ai_operation === "execute_tool" || s.gen_ai_tool_name).length;
+  const llmCount = spans.filter(s => s.gen_ai_operation === "chat").length;
+  const isError = spans.some(s => s.status === "ERROR");
+
+  // Executive Scorecard
+  const scorecardHtml = `
+    <div class="biz-scorecard">
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">Execution Status</span>
+        <span class="biz-metric-val" style="color: ${isError ? 'var(--color-error)' : 'var(--color-success)'}">
+          ${isError ? '● Error Detected' : '● Operational OK'}
+        </span>
+      </div>
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">Turnaround Time</span>
+        <span class="biz-metric-val">${totalMs} ms</span>
+      </div>
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">LLM Consultations</span>
+        <span class="biz-metric-val">${llmCount} calls</span>
+      </div>
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">Tools Executed</span>
+        <span class="biz-metric-val">${toolCount} tools</span>
+      </div>
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">Total Tokens</span>
+        <span class="biz-metric-val">${totalTokens.toLocaleString()}</span>
+      </div>
+      <div class="biz-metric-item">
+        <span class="biz-metric-label">Economic Cost</span>
+        <span class="biz-metric-val">$${totalCost.toFixed(5)}</span>
+      </div>
+    </div>
+  `;
+
+  // Conversational Stream Cards
+  const cards = [];
+
+  // Card 1: User Objective / Trigger
+  let initialPrompt = rootSpan.prompt_payload;
+  if (!initialPrompt || initialPrompt === '""' || initialPrompt === "{}") {
+    const firstChat = spans.find(s => s.gen_ai_operation === "chat" && s.prompt_payload && s.prompt_payload !== '""');
+    if (firstChat) initialPrompt = firstChat.prompt_payload;
+  }
+  try {
+    const parsed = JSON.parse(initialPrompt);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const userMsg = parsed.find(m => m.role === "user") || parsed[0];
+      initialPrompt = userMsg.content || userMsg.text || initialPrompt;
+    } else if (typeof parsed === "string") {
+      initialPrompt = parsed;
+    }
+  } catch (_) {}
+
+  if (!initialPrompt || initialPrompt.trim() === '""' || initialPrompt.trim() === "") {
+    initialPrompt = `Autonomous execution initiated for ${rootSpan.name || 'agent'}`;
+  }
+
+  cards.push(`
+    <div class="biz-chat-card">
+      <div class="biz-card-head">
+        <span class="biz-tag biz-tag-user">👤 User Objective / Trigger</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Root Prompt</span>
+      </div>
+      <div class="biz-body">${escapeHtml(initialPrompt)}</div>
+    </div>
+  `);
+
+  // Intermediate Action Cards
+  spans.forEach(s => {
+    if (s.span_id === rootSpan.span_id && spans.length > 1) return;
+
+    const isTool = s.gen_ai_operation === "execute_tool" || s.gen_ai_tool_name;
+    const isChat = s.gen_ai_operation === "chat";
+
+    let bodyText = s.completion_payload || s.prompt_payload || "";
+    try {
+      const p = JSON.parse(bodyText);
+      if (typeof p === "string") bodyText = p;
+    } catch (_) {}
+    if (!bodyText || bodyText.trim() === '""' || bodyText.trim() === "") {
+      bodyText = isTool 
+        ? "Tool executed successfully with zero errors." 
+        : `Completed operation in ${s.duration_ms} ms (${s.gen_ai_total_tokens || 0} tokens).`;
+    }
+
+    if (isTool) {
+      cards.push(`
+        <div class="biz-chat-card" onclick="openDrawer('${s.span_id}')" style="cursor:pointer;" title="Click to view full tool execution details">
+          <div class="biz-card-head">
+            <span class="biz-tag biz-tag-tool">🛠️ Tool Invoked: ${escapeHtml(s.gen_ai_tool_name || s.name)}</span>
+            <div class="biz-chips">
+              <span class="biz-chip">⏱️ ${s.duration_ms} ms</span>
+              <span class="biz-chip">Inspect ↗</span>
+            </div>
+          </div>
+          <div class="biz-body">${escapeHtml(bodyText)}</div>
+        </div>
+      `);
+    } else if (isChat) {
+      cards.push(`
+        <div class="biz-chat-card" onclick="openDrawer('${s.span_id}')" style="cursor:pointer;" title="Click to inspect model attributes">
+          <div class="biz-card-head">
+            <span class="biz-tag biz-tag-agent">🧠 AI Deliberation (${escapeHtml(s.gen_ai_request_model || 'LLM')})</span>
+            <div class="biz-chips">
+              <span class="biz-chip">⏱️ ${s.duration_ms} ms</span>
+              <span class="biz-chip">${s.gen_ai_total_tokens} tokens</span>
+              <span class="biz-chip">$${Number(s.gen_ai_cost_usd || 0).toFixed(5)}</span>
+            </div>
+          </div>
+          <div class="biz-body">${escapeHtml(bodyText)}</div>
+        </div>
+      `);
+    }
+  });
+
+  // Final Output Card
+  let finalCompletion = rootSpan.completion_payload;
+  try {
+    const fp = JSON.parse(finalCompletion);
+    if (typeof fp === "string") finalCompletion = fp;
+  } catch (_) {}
+
+  if (finalCompletion && finalCompletion.trim() !== '""' && finalCompletion.trim() !== "") {
+    cards.push(`
+      <div class="biz-chat-card">
+        <div class="biz-card-head">
+          <span class="biz-tag biz-tag-output">🎯 Final Agent Deliverable</span>
+          <span style="font-size:0.75rem; color:var(--color-success); font-weight:700;">✓ Completed in ${totalMs} ms</span>
+        </div>
+        <div class="biz-body resolution">${escapeHtml(finalCompletion)}</div>
+      </div>
+    `);
+  }
+
+  canvas.innerHTML = scorecardHtml + `<div class="biz-card-stream">${cards.join("")}</div>`;
+}
+
+function exportActiveTraceCapsule() {
+  if (!activeTraceId) return;
+  const url = currentDb 
+    ? `/api/traces/${activeTraceId}/export-html?db=${encodeURIComponent(currentDb)}` 
+    : `/api/traces/${activeTraceId}/export-html`;
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${activeTraceId}.ntrace.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function renderWaterfall(spans) {
@@ -232,16 +453,28 @@ function renderWaterfall(spans) {
     depthMap[s.span_id] = depth;
   });
 
+  // Smart ruler ticks with automatic unit scaling (µs vs ms vs s)
+  let tickFmt;
+  if (totalDurationMs < 0.1) {
+    tickFmt = val => `${(val * 1000).toFixed(0)} µs`;
+  } else if (totalDurationMs < 10) {
+    tickFmt = val => `${val.toFixed(2)} ms`;
+  } else if (totalDurationMs < 1000) {
+    tickFmt = val => `${val.toFixed(1)} ms`;
+  } else {
+    tickFmt = val => `${(val / 1000).toFixed(2)} s`;
+  }
+
   // Waterfall timeline ruler header
   const rulerHtml = `
     <div class="waterfall-header-ruler">
       <div class="ruler-title-col">Span / Operation Hierarchy</div>
       <div class="ruler-ticks-col">
-        <span>0 ms</span>
-        <span>${(totalDurationMs * 0.25).toFixed(1)} ms</span>
-        <span>${(totalDurationMs * 0.50).toFixed(1)} ms</span>
-        <span>${(totalDurationMs * 0.75).toFixed(1)} ms</span>
-        <span>${totalDurationMs.toFixed(1)} ms</span>
+        <span>0</span>
+        <span>${tickFmt(totalDurationMs * 0.25)}</span>
+        <span>${tickFmt(totalDurationMs * 0.50)}</span>
+        <span>${tickFmt(totalDurationMs * 0.75)}</span>
+        <span>${tickFmt(totalDurationMs)}</span>
       </div>
       <div class="ruler-duration-col">Duration</div>
     </div>

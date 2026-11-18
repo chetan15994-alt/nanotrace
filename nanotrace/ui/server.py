@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from nanotrace.storage.duckdb_sink import DuckDBSink
 from nanotrace.eval.heuristics import LocalHeuristicEvaluator
+from nanotrace.export.capsule import generate_trace_capsule
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -81,6 +82,24 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
             if not spans:
                 raise HTTPException(status_code=404, detail="Trace not found")
             return spans
+        finally:
+            sink.close()
+
+    @app.get("/api/traces/{trace_id}/export-html")
+    def export_trace_html(trace_id: str, db: Optional[str] = None):
+        sink = get_sink(db)
+        try:
+            spans = sink.get_trace_tree(trace_id)
+            if not spans:
+                raise HTTPException(status_code=404, detail="Trace not found")
+            html_content = generate_trace_capsule(trace_id=trace_id, spans=spans)
+            return Response(
+                content=html_content,
+                media_type="text/html",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{trace_id}.ntrace.html"'
+                }
+            )
         finally:
             sink.close()
 

@@ -143,12 +143,31 @@
       <section class="trace-workspace">
         <div class="workspace-header">
           <div class="workspace-title-area">
-            <h2 id="activeTraceTitle">Select a trace to inspect</h2>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <h2 id="activeTraceTitle" style="margin:0;">Select a trace to inspect</h2>
+              <!-- Dual-Audience Lens Toggle -->
+              <div class="lens-toggle-pill" id="lensToggleGroup" style="display:none;">
+                <button class="lens-pill-btn active" id="lensBtnBiz" onclick="switchLens('business')">
+                  <span>👔 Business Lens</span>
+                </button>
+                <button class="lens-pill-btn" id="lensBtnHacker" onclick="switchLens('hacker')">
+                  <span>🛠️ Hacker Lens</span>
+                </button>
+              </div>
+            </div>
             <div class="trace-meta-tags" id="activeTraceMeta">
               <span>Click on any trace in the sidebar to visualize its timeline and execution tree.</span>
             </div>
           </div>
           <div class="workspace-actions" id="traceActionButtons" style="display: none;">
+            <button class="btn btn-capsule" onclick="exportActiveTraceCapsule()" id="exportCapsuleBtn" title="Export 1-Click Standalone HTML Capsule (.ntrace.html)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Export Capsule (.html)</span>
+            </button>
             <button class="btn btn-eval" onclick="runTraceEvals()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
@@ -168,7 +187,10 @@
         <!-- Evaluation Results Banner -->
         <div class="eval-card" id="evalCard" style="display: none;"></div>
 
-        <!-- Waterfall Timeline Chart -->
+        <!-- Business Lens Canvas -->
+        <div class="business-canvas" id="businessCanvas" style="display: none;"></div>
+
+        <!-- Waterfall Timeline Chart (Hacker Lens) -->
         <div class="waterfall-canvas" id="waterfallCanvas">
           <div class="placeholder-hero">
             <div class="placeholder-icon">
