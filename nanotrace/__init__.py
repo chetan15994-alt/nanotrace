@@ -50,6 +50,19 @@ from nanotrace.security import (
     AdversarialGenerator,
     RedTeamRunner,
 )
+from nanotrace.fleet import (
+    FleetNode,
+    SyncResult,
+    FleetOverview,
+    FleetSyncEngine,
+)
+from nanotrace.topology import (
+    TopologyNode,
+    TopologyEdge,
+    OptimizationRecommendation,
+    TopologyAnalysis,
+    TopologyOptimizer,
+)
 from nanotrace.exceptions import (
     NanoTraceError,
     CircuitBreakerTrip,
@@ -235,6 +248,33 @@ def get_redteam_runner(db_path: Optional[str] = None) -> RedTeamRunner:
     return _DEFAULT_REDTEAM_RUNNER
 
 
+_DEFAULT_FLEET_ENGINE: Optional[FleetSyncEngine] = None
+_DEFAULT_TOPOLOGY_OPTIMIZER: Optional[TopologyOptimizer] = None
+
+
+def get_fleet_engine(db_path: Optional[str] = None) -> FleetSyncEngine:
+    """Retrieve or initialize the active FleetSyncEngine."""
+    global _DEFAULT_FLEET_ENGINE
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_FLEET_ENGINE is None or _DEFAULT_FLEET_ENGINE.db_path != target_path:
+        _DEFAULT_FLEET_ENGINE = FleetSyncEngine(db_path=target_path)
+    return _DEFAULT_FLEET_ENGINE
+
+
+def get_topology_optimizer(db_path: Optional[str] = None) -> TopologyOptimizer:
+    """Retrieve or initialize the active TopologyOptimizer."""
+    global _DEFAULT_TOPOLOGY_OPTIMIZER
+    target_path = db_path
+    if not target_path:
+        target_path = getattr(_DEFAULT_TRACER.sink, "db_path", "./.traces/nanotrace.duckdb") if _DEFAULT_TRACER else "./.traces/nanotrace.duckdb"
+    if _DEFAULT_TOPOLOGY_OPTIMIZER is None or _DEFAULT_TOPOLOGY_OPTIMIZER.db_path != target_path:
+        _DEFAULT_TOPOLOGY_OPTIMIZER = TopologyOptimizer(db_path=target_path)
+    return _DEFAULT_TOPOLOGY_OPTIMIZER
+
+
+
 __all__ = [
     "__version__",
     "init",
@@ -297,5 +337,16 @@ __all__ = [
     "AdversarialGenerator",
     "RedTeamRunner",
     "get_redteam_runner",
+    "FleetNode",
+    "SyncResult",
+    "FleetOverview",
+    "FleetSyncEngine",
+    "get_fleet_engine",
+    "TopologyNode",
+    "TopologyEdge",
+    "OptimizationRecommendation",
+    "TopologyAnalysis",
+    "TopologyOptimizer",
+    "get_topology_optimizer",
 ]
 

@@ -809,5 +809,150 @@ app.add_typer(feedback_app, name="feedback")
 app.add_typer(rag_app, name="rag")
 
 
+# ==============================================================================
+# Phase 6: NanoFleet & Swarm Topology Optimizer CLI Commands
+# ==============================================================================
+
+fleet_app = typer.Typer(help="NanoFleet: Distributed swarm aggregation & Parquet sync commands")
+
+
+@fleet_app.command("sync")
+def fleet_sync(
+    target: str = typer.Option("./.traces/fleet_sync", "--target", "-t", help="Target directory for Parquet snapshots"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to local DuckDB file"),
+    node_id: Optional[str] = typer.Option(None, "--node-id", "-n", help="Node identifier"),
+):
+    """Export local trace snapshots to a shared Parquet lakehouse directory."""
+    from nanotrace.fleet import FleetSyncEngine
+
+    engine = FleetSyncEngine(db_path=db_path)
+    res = engine.export_snapshot(target_dir=target, node_id=node_id)
+
+    if res.status == "success":
+        console.print(f"[bold green]✓ NanoFleet Export Complete![/bold green]")
+        console.print(f"   • Node ID: [cyan]{res.node_id}[/cyan]")
+        console.print(f"   • Spans Exported: [bold]{res.spans_exported}[/bold]")
+        console.print(f"   • Target File: [dim]{res.target_uri}[/dim]")
+        console.print(f"   • Latency: [yellow]{res.elapsed_ms:.2f} ms[/yellow]")
+    elif res.status == "no_op":
+        console.print(f"[yellow]NanoFleet Sync No-Op: 0 new spans to export.[/yellow]")
+    else:
+        console.print(f"[bold red]❌ NanoFleet Sync Failed: {res.error}[/bold red]")
+        raise typer.Exit(code=1)
+
+
+@fleet_app.command("nodes")
+def fleet_list_nodes(
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """List all registered worker nodes in the distributed agent swarm."""
+    from nanotrace.fleet import FleetSyncEngine
+
+    engine = FleetSyncEngine(db_path=db_path)
+    nodes = engine.list_nodes()
+
+    if not nodes:
+        console.print("[yellow]No fleet nodes registered. Run 'nanotrace fleet sync' to register local node.[/yellow]")
+        return
+
+    table = Table(title="🌐 NanoFleet Swarm Active Worker Nodes", border_style="cyan")
+    table.add_column("Node ID", style="bold cyan")
+    table.add_column("Hostname", style="white")
+    table.add_column("IP Address", style="dim")
+    table.add_column("Status", justify="center")
+    table.add_column("Spans Synced", justify="right")
+    table.add_column("Last Sync", style="dim")
+
+    for n in nodes:
+        status_badge = "[green]● ACTIVE[/green]" if n.status == "active" else f"[dim]{n.status}[/dim]"
+        table.add_row(n.node_id, n.hostname, n.ip_address, status_badge, str(n.spans_synced), n.last_sync_at[:19])
+
+    console.print(table)
+
+
+@fleet_app.command("pull")
+def fleet_pull(
+    source: str = typer.Option("./.traces/fleet_sync", "--source", "-s", help="Source directory containing remote Parquet files"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Target DuckDB file to aggregate into"),
+):
+    """Import and deduplicate remote Parquet snapshots into the central lakehouse."""
+    from nanotrace.fleet import FleetSyncEngine
+
+    engine = FleetSyncEngine(db_path=db_path)
+    imported = engine.import_fleet_snapshots(source)
+    console.print(f"[bold green]✓ Fleet Ingestion Complete: Aggregated {imported} new spans into '{db_path}'![/bold green]")
+
+
+app.add_typer(fleet_app, name="fleet")
+
+
+@app.command("topology")
+def analyze_topology(
+    trace_id: Optional[str] = typer.Argument(None, help="Trace ID to analyze (defaults to latest trace)"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+):
+    """Analyze agent delegation DAG, critical path, and communication bottlenecks."""
+    from nanotrace.topology import TopologyOptimizer
+
+    optimizer = TopologyOptimizer(db_path=db_path)
+    if trace_id:
+        analysis = optimizer.analyze_trace(trace_id)
+    else:
+        analysis = optimizer.analyze_latest_trace()
+
+    if analysis.total_steps == 0:
+        console.print(f"[yellow]No trace data found to analyze for trace '{trace_id or 'latest'}'.[/yellow]")
+        return
+
+    console.print(f"\n[bold cyan]🕸️ Swarm Topology Analysis: Trace {analysis.trace_id[:16]}...[/bold cyan]")
+    
+    # Overview Panel
+    ov = (
+        f"Total Steps: [bold]{analysis.total_steps}[/bold] | "
+        f"Agents Involved: [bold]{analysis.total_agents}[/bold] | "
+        f"Critical Path: [bold yellow]{analysis.critical_path_ms:.1f} ms[/bold yellow] | "
+        f"Communication Overhead: [bold]{analysis.communication_overhead_pct:.1f}%[/bold]"
+    )
+    console.print(Panel(ov, title="DAG Performance Metrics", border_style="cyan"))
+
+    # Nodes Table
+    table = Table(title="Execution DAG Nodes", border_style="blue")
+    table.add_column("Node Name", style="bold white")
+    table.add_column("Type", style="cyan")
+    table.add_column("Invocations", justify="right")
+    table.add_column("Total Latency", justify="right")
+    table.add_column("Avg Latency", justify="right")
+    table.add_column("Total Spend", justify="right", style="green")
+
+    for n in analysis.nodes:
+        table.add_row(
+            n.name,
+            n.node_type.upper(),
+            str(n.total_calls),
+            f"{n.total_duration_ms:.1f} ms",
+            f"{n.avg_latency_ms:.1f} ms",
+            f"${n.total_cost_usd:.5f}",
+        )
+    console.print(table)
+
+    # Recommendations Table
+    if analysis.recommendations:
+        rec_table = Table(title="💡 Autonomous Topology Optimization Recommendations", border_style="green")
+        rec_table.add_column("Category", style="bold magenta")
+        rec_table.add_column("Severity", justify="center")
+        rec_table.add_column("Recommendation", style="bold")
+        rec_table.add_column("Est. Savings", justify="right", style="green")
+
+        for r in analysis.recommendations:
+            sev_badge = "[red]HIGH[/red]" if r.severity in ["critical", "high"] else f"[yellow]{r.severity.upper()}[/yellow]"
+            rec_table.add_row(
+                r.category.upper(),
+                sev_badge,
+                f"{r.title}\n[dim]{r.description}[/dim]\n[cyan]Action: {r.suggested_patch}[/cyan]",
+                f"{r.estimated_savings_pct:.1f}%",
+            )
+        console.print(rec_table)
+
+
 if __name__ == "__main__":
     app()

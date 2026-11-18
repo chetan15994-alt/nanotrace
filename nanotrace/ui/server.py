@@ -26,6 +26,8 @@ from nanotrace.feedback import FeedbackCollector, FeedbackEntry
 from nanotrace.media import detect_media, sanitize_payload_for_display, scan_trace_multimodal_artifacts
 from nanotrace.rag import RAGRadarEngine, RetrievedChunk
 from nanotrace.security import RedTeamRunner, AdversarialGenerator, AttackType
+from nanotrace.fleet import FleetSyncEngine, FleetNode
+from nanotrace.topology import TopologyOptimizer
 
 
 class ForkRequest(BaseModel):
@@ -95,6 +97,13 @@ class RunRedTeamRequest(BaseModel):
     prompt_override: Optional[str] = None
     attack_types: Optional[List[str]] = None
     model_simulate: str = "safe"  # "safe", "vulnerable", "guarded"
+
+
+class FleetSyncRequest(BaseModel):
+    target_dir: Optional[str] = "./.traces/fleet_sync"
+    since_timestamp_ns: Optional[int] = None
+    node_id: Optional[str] = None
+    mode: str = "export"  # "export" or "import"
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -572,6 +581,63 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
         target_db = resolve_db_path(db)
         runner = RedTeamRunner(db_path=target_db)
         return {"scans": runner.list_scans(limit=limit)}
+
+    # =========================================================================
+    # Phase 6: NanoFleet & Swarm Topology Optimizer Routes
+    # =========================================================================
+
+    @app.get("/api/fleet/overview")
+    def get_fleet_overview_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = FleetSyncEngine(db_path=target_db)
+        return engine.get_fleet_overview().to_dict()
+
+    @app.get("/api/fleet/nodes")
+    def list_fleet_nodes_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = FleetSyncEngine(db_path=target_db)
+        return [n.to_dict() for n in engine.list_nodes()]
+
+    @app.post("/api/fleet/sync")
+    def trigger_fleet_sync_endpoint(payload: FleetSyncRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = FleetSyncEngine(db_path=target_db)
+        target_dir = payload.target_dir or "./.traces/fleet_sync"
+
+        if payload.mode == "import":
+            imported = engine.import_fleet_snapshots(target_dir)
+            return {
+                "status": "ok",
+                "mode": "import",
+                "spans_imported": imported,
+                "overview": engine.get_fleet_overview().to_dict(),
+            }
+        else:
+            res = engine.export_snapshot(
+                target_dir=target_dir,
+                since_timestamp_ns=payload.since_timestamp_ns,
+                node_id=payload.node_id,
+            )
+            return {
+                "status": "ok",
+                "mode": "export",
+                "result": res.to_dict(),
+                "overview": engine.get_fleet_overview().to_dict(),
+            }
+
+    @app.get("/api/topology/trace/{trace_id}")
+    def get_trace_topology_endpoint(trace_id: str, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        optimizer = TopologyOptimizer(db_path=target_db)
+        analysis = optimizer.analyze_trace(trace_id)
+        return analysis.to_dict()
+
+    @app.get("/api/topology/latest")
+    def get_latest_topology_endpoint(db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        optimizer = TopologyOptimizer(db_path=target_db)
+        analysis = optimizer.analyze_latest_trace()
+        return analysis.to_dict()
 
     @app.get("/", response_class=HTMLResponse)
     def serve_dashboard():

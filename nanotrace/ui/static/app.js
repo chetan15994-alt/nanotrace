@@ -86,14 +86,16 @@ function switchView(viewName) {
   const tabRegressionBtn = document.getElementById("tabRegressionBtn");
   const tabPromptBtn = document.getElementById("tabPromptBtn");
   const tabSafetyBtn = document.getElementById("tabSafetyBtn");
+  const tabFleetBtn = document.getElementById("tabFleetBtn");
   const viewTraces = document.getElementById("viewTraces");
   const viewGuide = document.getElementById("viewGuide");
   const viewRegression = document.getElementById("viewRegression");
   const viewPromptStudio = document.getElementById("viewPromptStudio");
   const viewSafety = document.getElementById("viewSafety");
+  const viewFleet = document.getElementById("viewFleet");
 
-  [tabTracesBtn, tabGuideBtn, tabRegressionBtn, tabPromptBtn, tabSafetyBtn].forEach(b => b && b.classList.remove("active"));
-  [viewTraces, viewGuide, viewRegression, viewPromptStudio, viewSafety].forEach(v => v && v.classList.remove("active"));
+  [tabTracesBtn, tabGuideBtn, tabRegressionBtn, tabPromptBtn, tabSafetyBtn, tabFleetBtn].forEach(b => b && b.classList.remove("active"));
+  [viewTraces, viewGuide, viewRegression, viewPromptStudio, viewSafety, viewFleet].forEach(v => v && v.classList.remove("active"));
 
   if (viewName === "traces") {
     if (tabTracesBtn) tabTracesBtn.classList.add("active");
@@ -117,6 +119,14 @@ function switchView(viewName) {
       loadRedTeamScans();
     } else {
       loadRAGRadar();
+    }
+  } else if (viewName === "fleet") {
+    if (tabFleetBtn) tabFleetBtn.classList.add("active");
+    if (viewFleet) viewFleet.classList.add("active");
+    if (currentFleetTab === "topology") {
+      loadTopologyAnalysis();
+    } else {
+      loadFleetOverview();
     }
   }
 }
@@ -2009,5 +2019,500 @@ function renderSecurityScorecard(card) {
       `;
     }).join("");
   }
+}
+
+// ==========================================================================
+// Phase 6: NanoFleet Multi-Node Sync & Swarm Topology Optimizer
+// ==========================================================================
+
+let currentFleetTab = "hub";
+let activeTopologyTraceId = null;
+
+function switchFleetTab(tab) {
+  currentFleetTab = tab;
+  const hubBtn = document.getElementById("fleetSubNavHub");
+  const topoBtn = document.getElementById("fleetSubNavTopology");
+  const hubPanel = document.getElementById("panelFleetHub");
+  const topoPanel = document.getElementById("panelFleetTopology");
+
+  if (tab === "hub") {
+    if (hubBtn) hubBtn.classList.add("active");
+    if (topoBtn) topoBtn.classList.remove("active");
+    if (hubPanel) { hubPanel.style.display = "block"; hubPanel.classList.add("active"); }
+    if (topoPanel) { topoPanel.style.display = "none"; topoPanel.classList.remove("active"); }
+    loadFleetOverview();
+  } else {
+    if (topoBtn) topoBtn.classList.add("active");
+    if (hubBtn) hubBtn.classList.remove("active");
+    if (hubPanel) { hubPanel.style.display = "none"; hubPanel.classList.remove("active"); }
+    if (topoPanel) { topoPanel.style.display = "block"; topoPanel.classList.add("active"); }
+    populateTopologyTraceSelect();
+    loadTopologyAnalysis();
+  }
+}
+
+async function loadFleetOverview() {
+  try {
+    const url = currentDb ? `/api/fleet/overview?db=${encodeURIComponent(currentDb)}` : "/api/fleet/overview";
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const totalNodesEl = document.getElementById("valFleetTotalNodes");
+    const activeNodesEl = document.getElementById("valFleetActiveNodes");
+    const aggSpansEl = document.getElementById("valFleetAggSpans");
+    const lastSyncBadge = document.getElementById("fleetLastSyncBadge");
+    const nodesGrid = document.getElementById("fleetNodesGrid");
+
+    if (totalNodesEl) totalNodesEl.innerText = data.total_nodes || 0;
+    if (activeNodesEl) activeNodesEl.innerText = data.active_nodes || 0;
+    if (aggSpansEl) aggSpansEl.innerText = Number(data.total_spans_aggregated || data.aggregated_spans || 0).toLocaleString();
+
+    if (lastSyncBadge) {
+      if (data.last_sync_time && data.last_sync_time !== "No sync executed") {
+        lastSyncBadge.innerText = `Last Sync: ${data.last_sync_time}`;
+      } else {
+        lastSyncBadge.innerText = "Last Sync: Ready";
+      }
+    }
+
+    if (nodesGrid) {
+      if (!data.nodes || data.nodes.length === 0) {
+        nodesGrid.innerHTML = `
+          <div style="padding:28px; text-align:center; color:var(--text-muted); font-size:0.8rem; grid-column:1/-1; background:var(--bg-card); border-radius:8px; border:1px dashed var(--border-color);">
+            No distributed fleet nodes registered yet. Click <strong>Export Snapshot</strong> or <strong>Ingest Fleet Parquet</strong> below to synchronize distributed agent nodes.
+          </div>
+        `;
+        return;
+      }
+
+      nodesGrid.innerHTML = data.nodes.map(node => {
+        const isOnline = node.status === "active";
+        const syncStr = node.last_sync_at || 'Never';
+        const uriDisp = node.target_uri ? node.target_uri.split('/').slice(-2).join('/') : 'local-lakehouse';
+
+        return `
+          <div class="fleet-node-card">
+            <div class="fleet-node-header">
+              <span class="fleet-node-title">🖥️ ${escapeHtml(node.node_id)}</span>
+              <span class="fleet-node-badge ${isOnline ? 'badge-active' : 'badge-syncing'}">
+                ${isOnline ? '● ACTIVE' : '○ IDLE'}
+              </span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; font-size:0.74rem;">
+              <div style="display:flex; justify-content:space-between; color:var(--text-secondary);">
+                <span>Hostname / Host:</span>
+                <span style="font-family:monospace; color:var(--text-primary); font-size:0.7rem;">${escapeHtml(node.hostname || 'localhost')} (${escapeHtml(node.ip_address || '127.0.0.1')})</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; color:var(--text-secondary);">
+                <span>Target URI:</span>
+                <span style="font-family:monospace; color:var(--text-primary); font-size:0.7rem;" title="${escapeHtml(node.target_uri || '')}">${escapeHtml(uriDisp)}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; color:var(--text-secondary);">
+                <span>Ingested Spans:</span>
+                <strong style="color:var(--text-primary);">${Number(node.spans_synced || 0).toLocaleString()}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; color:var(--text-secondary);">
+                <span>Last Sync:</span>
+                <span>${escapeHtml(syncStr)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  } catch (err) {
+    console.error("Failed to load fleet overview:", err);
+  }
+}
+
+async function exportFleetSnapshotUI() {
+  const targetDirInput = document.getElementById("fleetTargetInput");
+  const targetDir = targetDirInput ? targetDirInput.value.trim() : "./.traces/fleet_sync";
+  const badge = document.getElementById("fleetLastSyncBadge");
+
+  if (badge) badge.innerText = "Exporting compressed Parquet snapshot...";
+
+  try {
+    const url = currentDb ? `/api/fleet/sync?db=${encodeURIComponent(currentDb)}` : "/api/fleet/sync";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "export", target_dir: targetDir })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const filesCount = data.files_written ? data.files_written.length : 1;
+      if (badge) badge.innerText = `Exported ${data.spans_exported} spans (${filesCount} Parquet file) in ${data.elapsed_ms}ms`;
+      loadFleetOverview();
+    } else {
+      if (badge) badge.innerText = `Export error: ${data.detail || 'failed'}`;
+    }
+  } catch (err) {
+    console.error("Export snapshot failed:", err);
+    if (badge) badge.innerText = `Export failed: ${err.message}`;
+  }
+}
+
+async function importFleetSnapshotsUI() {
+  const targetDirInput = document.getElementById("fleetTargetInput");
+  const targetDir = targetDirInput ? targetDirInput.value.trim() : "./.traces/fleet_sync";
+  const badge = document.getElementById("fleetLastSyncBadge");
+
+  if (badge) badge.innerText = "Ingesting Parquet snapshots into Lakehouse...";
+
+  try {
+    const url = currentDb ? `/api/fleet/sync?db=${encodeURIComponent(currentDb)}` : "/api/fleet/sync";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "import", target_dir: targetDir })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (badge) badge.innerText = `Ingested ${data.spans_imported} spans from Parquet snapshots`;
+      loadFleetOverview();
+      loadDashboard();
+    } else {
+      if (badge) badge.innerText = `Import error: ${data.detail || 'failed'}`;
+    }
+  } catch (err) {
+    console.error("Import snapshots failed:", err);
+    if (badge) badge.innerText = `Import failed: ${err.message}`;
+  }
+}
+
+async function populateTopologyTraceSelect() {
+  const sel = document.getElementById("topoTraceSelect");
+  if (!sel) return;
+
+  try {
+    let traceList = (typeof traces !== "undefined" && Array.isArray(traces) && traces.length > 0) ? traces : [];
+    if (traceList.length === 0) {
+      const url = currentDb ? `/api/traces?db=${encodeURIComponent(currentDb)}` : "/api/traces";
+      const res = await fetch(url);
+      if (res.ok) {
+        traceList = await res.json();
+      }
+    }
+
+    const currentVal = sel.value;
+    sel.innerHTML = `<option value="">Latest Execution Trace</option>` + traceList.map(t => {
+      const label = `${t.trace_id.substring(0, 8)}... (${escapeHtml(t.root_span_name || 'Workflow')}) - ${t.span_count} spans`;
+      return `<option value="${escapeHtml(t.trace_id)}">${label}</option>`;
+    }).join("");
+
+    if (currentVal) sel.value = currentVal;
+  } catch (err) {
+    console.error("Error populating topology trace select:", err);
+  }
+}
+
+function onTopologyTraceChange() {
+  const sel = document.getElementById("topoTraceSelect");
+  const traceId = sel ? sel.value : "";
+  loadTopologyAnalysis(traceId);
+}
+
+function refreshTopologyUI() {
+  const sel = document.getElementById("topoTraceSelect");
+  const traceId = sel ? sel.value : "";
+  loadTopologyAnalysis(traceId);
+}
+
+async function loadTopologyAnalysis(traceId) {
+  try {
+    let url = traceId 
+      ? `/api/topology/trace/${encodeURIComponent(traceId)}` 
+      : `/api/topology/latest`;
+    if (currentDb) {
+      url += (url.includes('?') ? '&' : '?') + `db=${encodeURIComponent(currentDb)}`;
+    }
+
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const analysis = await res.json();
+
+    const stepsVal = document.getElementById("topoStepsVal");
+    const agentsVal = document.getElementById("topoAgentsVal");
+    const critVal = document.getElementById("topoCritVal");
+    const overheadVal = document.getElementById("topoOverheadVal");
+
+    if (stepsVal) stepsVal.innerText = analysis.total_steps || 0;
+    if (agentsVal) agentsVal.innerText = analysis.total_agents || analysis.agent_count || 0;
+    const critLatency = analysis.critical_path_ms ?? analysis.critical_path_latency_ms ?? 0;
+    if (critVal) critVal.innerText = `${critLatency.toFixed(1)} ms`;
+    if (overheadVal) overheadVal.innerText = `${(analysis.communication_overhead_pct || 0).toFixed(1)}%`;
+
+    renderTopologyDAG(analysis);
+    renderTopologyRecs(analysis.recommendations || []);
+  } catch (err) {
+    console.error("Failed to load topology analysis:", err);
+  }
+}
+
+function renderTopologyDAG(analysis) {
+  const edgesGroup = document.getElementById("topologyEdgesGroup");
+  const nodesGroup = document.getElementById("topologyNodesGroup");
+  if (!edgesGroup || !nodesGroup) return;
+
+  edgesGroup.innerHTML = "";
+  nodesGroup.innerHTML = "";
+
+  const nodes = analysis.nodes || [];
+  const edges = analysis.edges || [];
+
+  if (nodes.length === 0) {
+    nodesGroup.innerHTML = `
+      <text x="350" y="210" text-anchor="middle" fill="var(--text-muted)" font-size="13">
+        No execution nodes found for this trace. Select a trace with agent/tool spans.
+      </text>
+    `;
+    return;
+  }
+
+  // Build DAG parent relationships from edges
+  const nodeMap = new Map();
+  nodes.forEach(n => nodeMap.set(n.id, n));
+
+  const incomingEdges = new Map();
+  nodes.forEach(n => incomingEdges.set(n.id, []));
+  edges.forEach(e => {
+    if (incomingEdges.has(e.target)) {
+      incomingEdges.get(e.target).push(e.source);
+    }
+  });
+
+  const levels = new Map();
+  // Find roots (nodes with 0 incoming edges from valid nodes)
+  nodes.forEach(n => {
+    const parents = (incomingEdges.get(n.id) || []).filter(pid => nodeMap.has(pid));
+    if (parents.length === 0) {
+      levels.set(n.id, 0);
+    }
+  });
+
+  // Assign BFS levels
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 20) {
+    changed = false;
+    iterations++;
+    nodes.forEach(n => {
+      const parents = (incomingEdges.get(n.id) || []).filter(pid => nodeMap.has(pid));
+      if (parents.length > 0) {
+        let maxPL = 0;
+        parents.forEach(pid => {
+          if (levels.has(pid)) {
+            maxPL = Math.max(maxPL, levels.get(pid) + 1);
+          }
+        });
+        if (!levels.has(n.id) || levels.get(n.id) < maxPL) {
+          levels.set(n.id, maxPL);
+          changed = true;
+        }
+      }
+    });
+  }
+
+  // Fallback for isolated or cyclical nodes
+  nodes.forEach((n, idx) => {
+    if (!levels.has(n.id)) levels.set(n.id, idx % 4);
+  });
+
+  // Group nodes by topological layer
+  const levelGroups = new Map();
+  nodes.forEach(n => {
+    const lvl = levels.get(n.id) || 0;
+    if (!levelGroups.has(lvl)) levelGroups.set(lvl, []);
+    levelGroups.get(lvl).push(n);
+  });
+
+  const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b);
+  const numLevels = sortedLevels.length;
+  const nodeWidth = 145;
+  const nodeHeight = 52;
+  const padX = 35;
+  const padY = 35;
+  const totalW = 700;
+  const totalH = 440;
+
+  const xStep = numLevels > 1 ? (totalW - padX * 2 - nodeWidth) / (numLevels - 1) : 250;
+  const nodeCoords = new Map();
+
+  sortedLevels.forEach((lvl, colIdx) => {
+    const group = levelGroups.get(lvl);
+    const count = group.length;
+    const yStep = (totalH - padY * 2) / (count + 1);
+
+    group.forEach((node, rowIdx) => {
+      const nx = padX + colIdx * xStep;
+      const ny = padY + (rowIdx + 1) * yStep - nodeHeight / 2;
+      nodeCoords.set(node.id, {
+        x: nx,
+        y: ny,
+        width: nodeWidth,
+        height: nodeHeight,
+        cx: nx + nodeWidth / 2,
+        cy: ny + nodeHeight / 2,
+        node: node
+      });
+    });
+  });
+
+  // Critical path nodes set
+  const critNodesSet = new Set();
+  edges.forEach(e => {
+    if (e.is_critical_path) {
+      critNodesSet.add(e.source);
+      critNodesSet.add(e.target);
+    }
+  });
+
+  // Render Edges
+  let edgeHtml = "";
+  edges.forEach(edge => {
+    const src = nodeCoords.get(edge.source);
+    const tgt = nodeCoords.get(edge.target);
+    if (!src || !tgt) return;
+
+    const isCrit = edge.is_critical_path;
+    const strokeColor = isCrit ? "#f59e0b" : "#94a3b8";
+    const strokeWidth = isCrit ? 2.6 : 1.8;
+    const marker = isCrit ? "url(#arrowhead-crit)" : "url(#arrowhead)";
+
+    let d = "";
+    if (tgt.x > src.x) {
+      const startX = src.x + src.width;
+      const startY = src.cy;
+      const endX = tgt.x;
+      const endY = tgt.cy;
+      const dx = Math.max(25, (endX - startX) / 2);
+      d = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
+    } else {
+      const startX = src.cx;
+      const startY = src.y;
+      const endX = tgt.cx;
+      const endY = tgt.y;
+      const arcH = 40;
+      d = `M ${startX} ${startY} C ${startX} ${startY - arcH}, ${endX} ${endY - arcH}, ${endX} ${endY}`;
+    }
+
+    edgeHtml += `
+      <path d="${d}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" marker-end="${marker}">
+        <title>Call: ${escapeHtml(edge.source)} → ${escapeHtml(edge.target)} (${edge.avg_latency_ms.toFixed(1)}ms)</title>
+      </path>
+    `;
+  });
+  edgesGroup.innerHTML = edgeHtml;
+
+  // Render Nodes
+  let nodeHtml = "";
+  nodes.forEach(node => {
+    const pos = nodeCoords.get(node.id);
+    if (!pos) return;
+
+    const isCrit = critNodesSet.has(node.id);
+    const ntype = (node.node_type || "agent").toLowerCase();
+
+    let fill = "rgba(124, 58, 237, 0.12)";
+    let stroke = "#7c3aed";
+    let icon = "🤖";
+
+    if (ntype === "tool") {
+      fill = "rgba(37, 99, 235, 0.12)";
+      stroke = "#2563eb";
+      icon = "🔧";
+    } else if (ntype === "llm") {
+      fill = "rgba(245, 158, 11, 0.12)";
+      stroke = "#f59e0b";
+      icon = "🧠";
+    } else if (ntype === "step") {
+      fill = "rgba(16, 185, 129, 0.12)";
+      stroke = "#10b981";
+      icon = "⚡";
+    }
+
+    if (isCrit) {
+      stroke = "#f59e0b";
+    }
+
+    const dur = node.total_duration_ms || node.avg_latency_ms || 0;
+    const titleText = `${escapeHtml(node.name)} (${ntype})\nDuration: ${dur.toFixed(1)}ms\nCalls: ${node.total_calls}\nCost: $${(node.total_cost_usd || 0).toFixed(5)}${isCrit ? '\n⚡ CRITICAL PATH' : ''}`;
+    const nameTrunc = node.name.length > 13 ? escapeHtml(node.name.substring(0, 12)) + '…' : escapeHtml(node.name);
+
+    nodeHtml += `
+      <g class="dag-node-item" style="cursor:pointer;">
+        <title>${titleText}</title>
+        <rect x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${pos.height}" rx="7" ry="7"
+              fill="${fill}" stroke="${stroke}" stroke-width="${isCrit ? 2.5 : 1.3}" />
+        ${isCrit ? `<circle cx="${pos.x + pos.width - 9}" cy="${pos.y + 9}" r="4" fill="#f59e0b"><title>Critical Path Node</title></circle>` : ''}
+        <text x="${pos.x + 10}" y="${pos.y + 20}" font-size="11" font-weight="700" fill="var(--text-primary)">
+          ${icon} ${nameTrunc}
+        </text>
+        <text x="${pos.x + 10}" y="${pos.y + 38}" font-size="9.5" fill="var(--text-secondary)">
+          ${dur.toFixed(1)}ms • ${node.total_calls} calls
+        </text>
+      </g>
+    `;
+  });
+  nodesGroup.innerHTML = nodeHtml;
+}
+
+function renderTopologyRecs(recommendations) {
+  const container = document.getElementById("topoRecsContainer");
+  const countBadge = document.getElementById("topoRecCountBadge");
+  if (!container) return;
+
+  if (countBadge) {
+    countBadge.innerText = `${recommendations.length} Action${recommendations.length === 1 ? '' : 's'}`;
+  }
+
+  if (recommendations.length === 0) {
+    container.innerHTML = `
+      <div style="padding:32px 20px; text-align:center; color:var(--text-muted); font-size:0.8rem; background:var(--bg-card); border-radius:8px; border:1px dashed var(--border-color);">
+        <div style="font-size:1.5rem; margin-bottom:6px;">🎉</div>
+        <div style="font-weight:700; color:var(--color-success); margin-bottom:4px;">Optimal Swarm Topology</div>
+        <div>No ping-pong loops, parallelizable bottlenecks, or redundant routing detected in this execution.</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = recommendations.map(rec => {
+    const cat = rec.category || "pruning";
+    const catClass = `cat-${cat}`;
+    const patchBox = rec.suggested_patch 
+      ? `<div class="rec-patch-box">${escapeHtml(rec.suggested_patch)}</div>`
+      : "";
+
+    let impactStr = "";
+    if (rec.estimated_savings_pct > 0) {
+      impactStr += `⚡ ~${rec.estimated_savings_pct.toFixed(0)}% Latency Reduction `;
+    }
+    if (rec.estimated_cost_reduction_usd > 0) {
+      impactStr += `💰 $${rec.estimated_cost_reduction_usd.toFixed(4)} Savings`;
+    }
+    if (!impactStr) {
+      impactStr = "⚡ Calibrated DAG Efficiency";
+    }
+
+    return `
+      <div class="rec-card">
+        <div class="rec-card-header">
+          <span class="rec-cat-badge ${catClass}">${escapeHtml(cat.replace('_', ' '))}</span>
+          <span style="font-size:0.68rem; font-weight:800; color:${rec.severity === 'high' || rec.severity === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)'};">
+            ${rec.severity.toUpperCase()}
+          </span>
+        </div>
+        <div class="rec-title">${escapeHtml(rec.title)}</div>
+        <div class="rec-desc">${escapeHtml(rec.description)}</div>
+        <div style="font-size:0.72rem; color:var(--color-success); font-weight:600;">
+          ${escapeHtml(impactStr)}
+        </div>
+        ${patchBox}
+      </div>
+    `;
+  }).join("");
 }
 

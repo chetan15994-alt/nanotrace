@@ -236,12 +236,143 @@ def test_tracer_hot_path_architectural_decoupling():
         "FeedbackEntry", "detect_media", "sanitize_payload_for_display",
         "RAGRadarEngine", "RAGQueryRecord", "RetrievedChunk",
         "RedTeamRunner", "AdversarialGenerator", "SecurityScorecard",
+        "FleetSyncEngine", "FleetNode", "SyncResult", "FleetOverview",
+        "TopologyOptimizer", "TopologyNode", "TopologyEdge", "OptimizationRecommendation", "TopologyAnalysis",
     ]
     for sym in forbidden_couplings:
         assert sym not in tracer_imports, f"Architectural violation: {sym} coupled to Tracer hot-path!"
         assert sym not in buffer_imports, f"Architectural violation: {sym} coupled to Buffer hot-path!"
 
     print("\n🏛️ [Decoupling Architecture Verification] Core Tracer and Buffer maintain 100% decoupling from secondary subsystems.")
+
+
+def test_fleet_parquet_export_import_throughput():
+    """Verify that NanoFleet native DuckDB ZSTD Parquet export and deduplicated import run in < 50 ms."""
+    import tempfile
+    import uuid
+    from nanotrace.core.span import Span
+    from nanotrace.storage.duckdb_sink import DuckDBSink
+    from nanotrace.fleet.engine import FleetSyncEngine
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/bench_fleet.duckdb"
+        export_dir = f"{tmpdir}/parquet_out"
+        sink = DuckDBSink(db_path=db_path)
+
+        # Generate 1,000 mock spans
+        spans = []
+        base_t = time.time_ns()
+        for i in range(1_000):
+            sp = Span(
+                name=f"fleet_step_{i}",
+                trace_id="bench_fleet_trace",
+                span_id=f"sp_{uuid.uuid4().hex[:12]}",
+                start_time_ns=base_t + i * 1_000_000,
+                end_time_ns=base_t + (i + 1) * 1_000_000,
+                attributes={"pod.id": "worker_01", "tokens.total": 150}
+            )
+            spans.append(sp)
+        sink.write_spans(spans)
+
+        fleet = FleetSyncEngine(db_path=db_path)
+
+        # 1. Benchmark Snapshot Export (ZSTD Parquet)
+        t0 = time.perf_counter()
+        res = fleet.export_snapshot(target_dir=export_dir, node_id="pod_01")
+        export_ms = (time.perf_counter() - t0) * 1000.0
+
+        print(f"\n📦 [NanoFleet Benchmark] Exported 1,000 spans to ZSTD Parquet in: {export_ms:.2f} ms")
+        assert res.spans_exported == 1_000
+        assert export_ms < 60.0, f"Export took {export_ms:.2f} ms (> 60 ms)"
+        assert len(res.files_written) > 0
+
+        # 2. Benchmark Snapshot Import into a fresh Lakehouse DB
+        lakehouse_db = f"{tmpdir}/lakehouse.duckdb"
+        lakehouse_fleet = FleetSyncEngine(db_path=lakehouse_db)
+
+        t1 = time.perf_counter()
+        imported = lakehouse_fleet.import_fleet_snapshots(export_dir)
+        import_ms = (time.perf_counter() - t1) * 1000.0
+
+        print(f"📥 [NanoFleet Benchmark] Ingested 1,000 spans into Lakehouse DuckDB in: {import_ms:.2f} ms")
+        assert imported == 1_000
+        assert import_ms < 60.0, f"Import took {import_ms:.2f} ms (> 60 ms)"
+
+        # 3. Benchmark Idempotent Re-Import (Deduplication)
+        t2 = time.perf_counter()
+        dup_imported = lakehouse_fleet.import_fleet_snapshots(export_dir)
+        dup_ms = (time.perf_counter() - t2) * 1000.0
+        print(f"🛡️ [NanoFleet Benchmark] Deduplicated merge (0 new spans) in: {dup_ms:.2f} ms")
+        assert dup_imported == 0
+
+
+def test_topology_optimizer_analysis_latency_sla():
+    """Verify that Swarm Topology DAG construction and optimization heuristic analysis runs in < 5.0 ms."""
+    import tempfile
+    import uuid
+    from nanotrace.core.span import Span
+    from nanotrace.storage.duckdb_sink import DuckDBSink
+    from nanotrace.topology.optimizer import TopologyOptimizer
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/bench_topo.duckdb"
+        sink = DuckDBSink(db_path=db_path)
+
+        trace_id = "trace_topo_bench"
+        base_t = time.time_ns()
+        spans = []
+
+        # Supervisor
+        sup_id = "sup_root"
+        spans.append(Span(
+            name="SupervisorAgent",
+            trace_id=trace_id,
+            span_id=sup_id,
+            start_time_ns=base_t,
+            end_time_ns=base_t + 100_000_000,
+            attributes={"agent.type": "orchestrator"}
+        ))
+
+        # 4 Workers
+        for w in range(4):
+            w_id = f"worker_{w}"
+            spans.append(Span(
+                name=f"WorkerAgent_{w}",
+                trace_id=trace_id,
+                span_id=w_id,
+                parent_span_id=sup_id,
+                start_time_ns=base_t + (w + 1) * 10_000_000,
+                end_time_ns=base_t + (w + 2) * 10_000_000,
+                attributes={"agent.role": "worker"}
+            ))
+            # 3 tools per worker (12 tool calls total)
+            for t in range(3):
+                spans.append(Span(
+                    name=f"tool_exec_{w}_{t}",
+                    trace_id=trace_id,
+                    span_id=f"t_{w}_{t}",
+                    parent_span_id=w_id,
+                    start_time_ns=base_t + (w + 1) * 10_000_000 + t * 2_000_000,
+                    end_time_ns=base_t + (w + 1) * 10_000_000 + (t + 1) * 2_000_000,
+                    attributes={"tool.name": f"tool_{t}"}
+                ))
+
+        sink.write_spans(spans)
+        assert len(spans) == 17
+
+        optimizer = TopologyOptimizer(db_path=db_path)
+
+        # Benchmark analysis latency
+        t0 = time.perf_counter()
+        analysis = optimizer.analyze_trace(trace_id)
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+        print(f"\n🕸️ [Swarm Topology Benchmark] DAG construction & optimization analysis ({len(spans)} spans) in: {elapsed_ms:.2f} ms (Target: < 5.0 ms)")
+        assert analysis.total_steps == 17
+        assert len(analysis.nodes) > 0
+        assert len(analysis.edges) > 0
+        assert elapsed_ms < 5.0, f"Topology analysis took {elapsed_ms:.2f} ms (> 5.0 ms SLA)"
+
 
 
 def test_rag_radar_projection_latency_sla():
