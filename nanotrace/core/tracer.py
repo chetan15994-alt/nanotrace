@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 import inspect
 import json
-from typing import Dict, Any, Optional, Callable, Generator, AsyncGenerator
+from typing import Dict, Any, List, Optional, Callable, Generator, AsyncGenerator
 from contextlib import contextmanager
 
 from nanotrace.core.span import Span, generate_trace_id, generate_span_id
@@ -24,6 +24,7 @@ from nanotrace.core.worker import FlushWorker
 from nanotrace.schema.otel import GenAIAttributes, GenAIOperation, SpanKind, StatusCode
 from nanotrace.storage.base import StorageSink
 from nanotrace.storage.duckdb_sink import DuckDBSink
+from nanotrace.guardrails.breakers import CircuitBreaker, PIIRedaction, get_trace_state
 
 
 class NanoTracer:
@@ -35,6 +36,7 @@ class NanoTracer:
         db_path: str = "./.traces/nanotrace.duckdb",
         buffer_capacity: int = 50_000,
         flush_interval: float = 0.25,
+        circuit_breakers: Optional[List[CircuitBreaker]] = None,
     ):
         self.sink = sink or DuckDBSink(db_path=db_path)
         self.buffer = SpanBuffer(max_capacity=buffer_capacity)
@@ -44,6 +46,7 @@ class NanoTracer:
             flush_interval_seconds=flush_interval,
         )
         self.worker.start()
+        self.circuit_breakers: List[CircuitBreaker] = list(circuit_breakers or [])
 
     @contextmanager
     def span(
@@ -53,6 +56,7 @@ class NanoTracer:
         attributes: Optional[Dict[str, Any]] = None,
         trace_id: Optional[str] = None,
         parent_span_id: Optional[str] = None,
+        circuit_breakers: Optional[List[CircuitBreaker]] = None,
     ) -> Generator[Span, None, None]:
         """Context manager to trace a synchronous block of code."""
         parent = get_current_span()
@@ -74,9 +78,21 @@ class NanoTracer:
         if conv_id and GenAIAttributes.CONVERSATION_ID not in span.attributes:
             span.set_attribute(GenAIAttributes.CONVERSATION_ID, conv_id)
 
+        # NanoShield Active Circuit Breakers: Pre-execution check (< 0.5 µs)
+        active_breakers = self.circuit_breakers + list(circuit_breakers or [])
+        root_start = parent.start_time_ns if parent else span.start_time_ns
+        state = get_trace_state(effective_trace_id, start_time_ns=root_start) if active_breakers else None
+
         token = set_current_span(span)
         try:
+            if active_breakers and state:
+                for breaker in active_breakers:
+                    breaker.check_before(span, state)
             yield span
+            # NanoShield Active Circuit Breakers: Post-execution check
+            if active_breakers and state:
+                for breaker in active_breakers:
+                    breaker.check_after(span, None, state)
         except BaseException as exc:
             span.record_exception(exc)
             raise
@@ -85,10 +101,21 @@ class NanoTracer:
             reset_current_span(token)
             self.buffer.push(span)
 
+    def check_span_payloads(self, span: Span, circuit_breakers: Optional[List[CircuitBreaker]] = None) -> None:
+        """Inspect and sanitize input payloads immediately after they are recorded."""
+        active = self.circuit_breakers + list(circuit_breakers or [])
+        if not active:
+            return
+        state = get_trace_state(span.trace_id)
+        for b in active:
+            if isinstance(b, PIIRedaction):
+                b.check_before(span, state)
+
     def trace_agent(
         self,
         name: Optional[str] = None,
         agent_type: Optional[str] = None,
+        circuit_breakers: Optional[List[CircuitBreaker]] = None,
     ) -> Callable:
         """Decorator to trace an agent function or method (supports both sync & async)."""
         def decorator(func: Callable) -> Callable:
@@ -104,12 +131,13 @@ class NanoTracer:
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
                     tracer = _get_active()
-                    with tracer.span(span_name, kind=SpanKind.INTERNAL) as sp:
+                    with tracer.span(span_name, kind=SpanKind.INTERNAL, circuit_breakers=circuit_breakers) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.AGENT_RUN.value)
                         sp.set_attribute(GenAIAttributes.AGENT_NAME, span_name)
                         if agent_type:
                             sp.set_attribute(GenAIAttributes.AGENT_TYPE, agent_type)
                         _record_inputs(sp, args, kwargs)
+                        tracer.check_span_payloads(sp, circuit_breakers)
                         result = await func(*args, **kwargs)
                         _record_output(sp, result)
                         return result
@@ -118,12 +146,13 @@ class NanoTracer:
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
                     tracer = _get_active()
-                    with tracer.span(span_name, kind=SpanKind.INTERNAL) as sp:
+                    with tracer.span(span_name, kind=SpanKind.INTERNAL, circuit_breakers=circuit_breakers) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.AGENT_RUN.value)
                         sp.set_attribute(GenAIAttributes.AGENT_NAME, span_name)
                         if agent_type:
                             sp.set_attribute(GenAIAttributes.AGENT_TYPE, agent_type)
                         _record_inputs(sp, args, kwargs)
+                        tracer.check_span_payloads(sp, circuit_breakers)
                         result = func(*args, **kwargs)
                         _record_output(sp, result)
                         return result
@@ -134,6 +163,7 @@ class NanoTracer:
     def trace_tool(
         self,
         name: Optional[str] = None,
+        circuit_breakers: Optional[List[CircuitBreaker]] = None,
     ) -> Callable:
         """Decorator to trace tool execution (sync or async)."""
         def decorator(func: Callable) -> Callable:
@@ -149,10 +179,11 @@ class NanoTracer:
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
                     tracer = _get_active()
-                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
+                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT, circuit_breakers=circuit_breakers) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.EXECUTE_TOOL.value)
                         sp.set_attribute(GenAIAttributes.TOOL_NAME, tool_name)
                         _record_inputs(sp, args, kwargs, is_tool=True)
+                        tracer.check_span_payloads(sp, circuit_breakers)
                         result = await func(*args, **kwargs)
                         _record_output(sp, result, is_tool=True)
                         return result
@@ -161,10 +192,11 @@ class NanoTracer:
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
                     tracer = _get_active()
-                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT) as sp:
+                    with tracer.span(f"tool: {tool_name}", kind=SpanKind.CLIENT, circuit_breakers=circuit_breakers) as sp:
                         sp.set_attribute(GenAIAttributes.OPERATION_NAME, GenAIOperation.EXECUTE_TOOL.value)
                         sp.set_attribute(GenAIAttributes.TOOL_NAME, tool_name)
                         _record_inputs(sp, args, kwargs, is_tool=True)
+                        tracer.check_span_payloads(sp, circuit_breakers)
                         result = func(*args, **kwargs)
                         _record_output(sp, result, is_tool=True)
                         return result

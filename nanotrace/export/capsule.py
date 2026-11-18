@@ -770,6 +770,34 @@ __JSON_DATA__
       spans.forEach(s => {
         if (s.span_id === rootSpan.span_id && spans.length > 1) return;
 
+        const isShieldTripped = s.attributes_json && (
+          s.attributes_json.includes('"nanotrace.shield.tripped": true') || 
+          s.attributes_json.includes('"nanotrace.shield.tripped":true')
+        );
+
+        if (isShieldTripped) {
+          cards.push(`
+            <div class="biz-card" style="border: 1.5px solid var(--color-error); background: rgba(239, 68, 68, 0.08);">
+              <div class="biz-card-header">
+                <div class="biz-role" style="color:var(--color-error);">
+                  <span class="biz-role-icon" style="background:rgba(239, 68, 68, 0.2); color:#ef4444;">🛡️</span>
+                  <span>NanoShield Circuit Breaker Intercepted</span>
+                </div>
+                <div class="biz-meta">
+                  <span style="color:var(--color-error); font-weight:700;">HALTED IN-PROCESS</span>
+                </div>
+              </div>
+              <div class="biz-bubble" style="border-left: 4px solid var(--color-error);">
+                <strong>${escapeHtml(s.status_message || 'Circuit breaker tripped.')}</strong>
+                <p style="margin-top:6px; font-size:0.8rem; color:var(--text-muted);">
+                  NanoShield actively intercepted runaway execution at this node before API bills or runaway recursion escalated.
+                </p>
+              </div>
+            </div>
+          `);
+          return;
+        }
+
         const isTool = s.gen_ai_operation === "execute_tool" || s.gen_ai_tool_name;
         const isChat = s.gen_ai_operation === "chat";
 

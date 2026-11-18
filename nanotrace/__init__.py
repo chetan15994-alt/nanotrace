@@ -5,7 +5,7 @@ The DuckDB of AI Observability.
 
 from __future__ import annotations
 
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, List
 from contextlib import contextmanager
 
 from nanotrace._version import __version__
@@ -20,6 +20,16 @@ from nanotrace.core.tracer import NanoTracer
 from nanotrace.core.healer import TraceHealer
 from nanotrace.eval.bridge import load_traces, TraceDataset
 from nanotrace.patchers import autoinstrument
+from nanotrace.exceptions import NanoTraceError, CircuitBreakerTrip, ReplayError
+from nanotrace.guardrails.breakers import (
+    CircuitBreaker,
+    MaxLoopBreaker,
+    BudgetCapBreaker,
+    MaxTokenBreaker,
+    PIIRedaction,
+    TimeoutBreaker,
+)
+from nanotrace.core.replay import ReplayEngine, ForkResult
 
 _DEFAULT_TRACER: Optional[NanoTracer] = None
 
@@ -29,6 +39,8 @@ def init(
     buffer_capacity: int = 50_000,
     flush_interval: float = 0.25,
     auto_patch: bool = False,
+    circuit_breakers: Optional[List[CircuitBreaker]] = None,
+    db_path: Optional[str] = None,
 ) -> NanoTracer:
     """Initialize the global NanoTrace engine.
 
@@ -37,20 +49,25 @@ def init(
         buffer_capacity: Max in-memory queue capacity before dropping spans
         flush_interval: Background worker flush interval in seconds
         auto_patch: If True, automatically instruments OpenAI and Anthropic SDKs if installed
+        circuit_breakers: Optional active NanoShield guardrails applied to all traces
+        db_path: Alias for storage_path
     """
     global _DEFAULT_TRACER
+    target_path = db_path or storage_path
     if _DEFAULT_TRACER is not None:
-        # If already initialized to the same database path and worker is running, reuse instance
-        if getattr(_DEFAULT_TRACER.sink, "db_path", None) == storage_path and getattr(_DEFAULT_TRACER.worker, "is_running", False):
+        if getattr(_DEFAULT_TRACER.sink, "db_path", None) == target_path and getattr(_DEFAULT_TRACER.worker, "is_running", False):
             if auto_patch:
                 autoinstrument(_DEFAULT_TRACER)
+            if circuit_breakers:
+                _DEFAULT_TRACER.circuit_breakers.extend(circuit_breakers)
             return _DEFAULT_TRACER
         _DEFAULT_TRACER.shutdown()
 
     _DEFAULT_TRACER = NanoTracer(
-        db_path=storage_path,
+        db_path=target_path,
         buffer_capacity=buffer_capacity,
         flush_interval=flush_interval,
+        circuit_breakers=circuit_breakers,
     )
 
     if auto_patch:
@@ -74,6 +91,7 @@ def span(
     attributes: Optional[Dict[str, Any]] = None,
     trace_id: Optional[str] = None,
     parent_span_id: Optional[str] = None,
+    circuit_breakers: Optional[List[CircuitBreaker]] = None,
 ):
     """Context manager to trace a block of code within the active trace tree."""
     tracer = get_tracer()
@@ -83,18 +101,26 @@ def span(
         attributes=attributes,
         trace_id=trace_id,
         parent_span_id=parent_span_id,
+        circuit_breakers=circuit_breakers,
     ) as sp:
         yield sp
 
 
-def trace_agent(name: Optional[str] = None, agent_type: Optional[str] = None) -> Callable:
-    """Decorator to trace an agent function or method (sync or async)."""
-    return get_tracer().trace_agent(name=name, agent_type=agent_type)
+def trace_agent(
+    name: Optional[str] = None,
+    agent_type: Optional[str] = None,
+    circuit_breakers: Optional[List[CircuitBreaker]] = None,
+) -> Callable:
+    """Decorator to trace an agent function or method (sync or async) with optional NanoShield breakers."""
+    return get_tracer().trace_agent(name=name, agent_type=agent_type, circuit_breakers=circuit_breakers)
 
 
-def trace_tool(name: Optional[str] = None) -> Callable:
-    """Decorator to trace tool execution (sync or async)."""
-    return get_tracer().trace_tool(name=name)
+def trace_tool(
+    name: Optional[str] = None,
+    circuit_breakers: Optional[List[CircuitBreaker]] = None,
+) -> Callable:
+    """Decorator to trace tool execution (sync or async) with optional NanoShield breakers."""
+    return get_tracer().trace_tool(name=name, circuit_breakers=circuit_breakers)
 
 
 def flush() -> int:
@@ -151,4 +177,15 @@ __all__ = [
     "StatusCode",
     "Span",
     "SpanEvent",
+    "CircuitBreaker",
+    "MaxLoopBreaker",
+    "BudgetCapBreaker",
+    "MaxTokenBreaker",
+    "PIIRedaction",
+    "TimeoutBreaker",
+    "CircuitBreakerTrip",
+    "ReplayError",
+    "NanoTraceError",
+    "ReplayEngine",
+    "ForkResult",
 ]

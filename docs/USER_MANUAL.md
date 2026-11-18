@@ -291,7 +291,77 @@ The local web dashboard (`nanotrace ui`) provides zero-dependency visual debuggi
 
 ---
 
-## 8. Command-Line Reference
+## 8. NanoShield: Active In-Process Circuit Breakers & Runtime Guardrails
+
+NanoShield extends tracing from passive observability into **active, sub-microsecond in-process protection**. Circuit breakers evaluate safety policies directly inside the agent execution thread before and after each node runs.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      NANOSHIELD RUNTIME CIRCUIT BREAKERS                        │
+├──────────────────────┬──────────────────────┬───────────────────────────────────┤
+│ Breaker Policy       │ Trigger Condition    │ In-Process Action Taken           │
+├──────────────────────┼──────────────────────┼───────────────────────────────────┤
+│ MaxLoopBreaker       │ Tool calls >= Limit  │ Intercept runaway recursive loops │
+│ BudgetCapBreaker     │ Spend >= Max USD     │ Halt before cloud bill escalates  │
+│ MaxTokenBreaker      │ Tokens >= Threshold  │ Prevent context overflow collapse │
+│ PIIRedaction         │ Key/SSN/Email regex  │ In-place mask or strict blocking  │
+│ TimeoutBreaker       │ Duration >= SLA (s)  │ Hard cutoff on hanging agent jobs │
+└──────────────────────┴──────────────────────┴───────────────────────────────────┘
+```
+
+### Python API Integration
+
+```python
+import nanotrace
+from nanotrace.guardrails import (
+    MaxLoopBreaker,
+    BudgetCapBreaker,
+    PIIRedaction,
+    TimeoutBreaker,
+)
+from nanotrace.exceptions import CircuitBreakerTrip
+
+# Initialize global guardrails across all traces
+nanotrace.init(
+    circuit_breakers=[
+        MaxLoopBreaker(limit=5),
+        BudgetCapBreaker(max_trace_usd=1.00),
+        PIIRedaction(action="redact"),
+        TimeoutBreaker(timeout_seconds=30.0),
+    ]
+)
+
+# Apply specific breakers to individual tools
+@nanotrace.trace_tool(circuit_breakers=[MaxLoopBreaker(limit=2)])
+def call_weather_api(city: str):
+    return fetch_weather(city)
+```
+
+When tripped, NanoShield automatically marks the span as `StatusCode.ERROR`, tags `nanotrace.shield.tripped=True`, logs the exact breach metrics, and raises a catchable `CircuitBreakerTrip` exception.
+
+---
+
+## 9. Time-Travel Agent Debugger & 1-Click "Replay & Fork" Playground
+
+Debugging non-deterministic agents often requires tedious manual repro steps and wasted token budgets. The **Time-Travel Debugger** allows engineers to rewind an execution trace to any intermediate decision node, modify prompts or swap models, and re-execute a live forked branch in-process.
+
+```
+Original Trace Lineage:
+[User Objective] ➔ [Planner Node] ➔ [Tool: Fetch Data] ➔ [Synthesizer] (Broken/Costly)
+                         │
+                         ▼ (1-Click "Replay & Fork")
+Forked Trace Branch:     └─ [Rewritten Guidance] ➔ [gpt-4o-mini] ➔ [Synthesizer] (Fixed, 90% Cheaper)
+```
+
+### Key Capabilities:
+* **Ancestry Context Preservation**: Reuses cached outputs from all upstream nodes, avoiding redundant LLM consultations and saving up to 90% in token spend.
+* **1-Click Waterfall Forking**: Click **`🔀 Fork`** directly from any waterfall bar in the Hacker Lens or span drawer.
+* **Model & Temperature Overrides**: Test how `claude-3-5-sonnet`, `gpt-4o-mini`, or `gemini-2.0-flash` perform on identical upstream state.
+* **Side-by-Side Execution Diff**: Review duration delta, token consumption, cost savings, and response diffs in real time.
+
+---
+
+## 10. Command-Line Reference
 
 | Command | Action | Key Options |
 |---|---|---|

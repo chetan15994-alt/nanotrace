@@ -36,6 +36,7 @@ env/
 .traces/
 *.duckdb
 *.duckdb.wal
+*.ntrace.html
 
 # Testing & Coverage
 .pytest_cache/

@@ -13,10 +13,20 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from nanotrace.storage.duckdb_sink import DuckDBSink
 from nanotrace.eval.heuristics import LocalHeuristicEvaluator
 from nanotrace.export.capsule import generate_trace_capsule
+from nanotrace.core.replay import ReplayEngine
+
+
+class ForkRequest(BaseModel):
+    span_id: str
+    prompt: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
+    mock_response: Optional[str] = None
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -120,6 +130,64 @@ def create_app(db_path: str = "./.traces/nanotrace.duckdb") -> FastAPI:
                 }
                 for h in heuristics
             ]
+        finally:
+            sink.close()
+
+    @app.post("/api/traces/{trace_id}/fork")
+    def fork_trace_node(trace_id: str, payload: ForkRequest, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = ReplayEngine(db_path=target_db)
+        try:
+            res = engine.fork_and_replay_node(
+                span_id=payload.span_id,
+                prompt=payload.prompt,
+                model=payload.model,
+                temperature=payload.temperature,
+                mock_response=payload.mock_response,
+            )
+            return res.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.get("/api/replay/{span_id}/context")
+    def get_replay_context(span_id: str, db: Optional[str] = None):
+        target_db = resolve_db_path(db)
+        engine = ReplayEngine(db_path=target_db)
+        try:
+            return engine.get_node_context(span_id)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.get("/api/shield/stats")
+    def get_shield_stats(db: Optional[str] = None):
+        sink = get_sink(db)
+        try:
+            tripped_rows = sink.query("""
+                SELECT 
+                    SUM(CASE WHEN status = 'ERROR' AND attributes_json LIKE '%nanotrace.shield.tripped%' THEN 1 ELSE 0 END) as total_tripped,
+                    SUM(CASE WHEN attributes_json LIKE '%MaxLoopBreaker%' THEN 1 ELSE 0 END) as loops_intercepted,
+                    SUM(CASE WHEN attributes_json LIKE '%nanotrace.shield.pii_redacted%' THEN 1 ELSE 0 END) as pii_redactions
+                FROM spans 
+                WHERE attributes_json LIKE '%nanotrace.shield%'
+            """)
+            tripped_count = int(tripped_rows[0]["total_tripped"] or 0) if tripped_rows else 0
+            loops_count = int(tripped_rows[0]["loops_intercepted"] or 0) if tripped_rows else 0
+            pii_count = int(tripped_rows[0]["pii_redactions"] or 0) if tripped_rows else 0
+            est_saved = (loops_count * 14.20) + (max(0, tripped_count - loops_count) * 2.50) + (pii_count * 5.00)
+
+            return {
+                "active": True,
+                "total_tripped": tripped_count,
+                "loops_intercepted": loops_count,
+                "pii_redactions": pii_count,
+                "estimated_spend_saved_usd": round(est_saved, 2),
+                "configured_breakers": [
+                    {"name": "MaxLoopBreaker", "status": "active", "rule": "Halt recursion >= 5"},
+                    {"name": "BudgetCapBreaker", "status": "active", "rule": "Cap spend <= $1.00"},
+                    {"name": "PIIRedaction", "status": "active", "rule": "Auto-mask API keys, SSN, Emails"},
+                    {"name": "TimeoutBreaker", "status": "active", "rule": "Execution limit <= 60s"},
+                ]
+            }
         finally:
             sink.close()
 

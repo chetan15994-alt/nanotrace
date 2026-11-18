@@ -42,6 +42,46 @@ def test_span_enqueue_latency_sla():
         assert avg_latency_us < 15.0, f"Span overhead {avg_latency_us:.2f} µs exceeded 15 µs SLA!"
 
 
+def test_nanoshield_circuit_breaker_latency_sla():
+    """Verify that active NanoShield circuit breaker evaluation remains < 15 µs SLA."""
+    from nanotrace.guardrails.breakers import MaxLoopBreaker, BudgetCapBreaker, MaxTokenBreaker, PIIRedaction
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = f"{tmpdir}/bench_shield.duckdb"
+        breakers = [
+            MaxLoopBreaker(limit=100_000),
+            BudgetCapBreaker(max_trace_usd=1000.0),
+            MaxTokenBreaker(max_total_tokens=10_000_000),
+            PIIRedaction(),
+        ]
+        tracer = nanotrace.init(
+            storage_path=db_path,
+            buffer_capacity=20_000,
+            flush_interval=1.0,
+            circuit_breakers=breakers,
+        )
+
+        # Warmup
+        for i in range(100):
+            with tracer.span(f"warmup_shield_{i}", kind=SpanKind.INTERNAL):
+                pass
+
+        num_spans = 5_000
+        start_ns = time.perf_counter_ns()
+        for i in range(num_spans):
+            with tracer.span(f"shield_span_{i}", kind=SpanKind.INTERNAL) as sp:
+                sp.prompt_payload = "Standard agent query without PII"
+                sp.completion_payload = "Standard calibrated reply"
+        total_elapsed_ns = time.perf_counter_ns() - start_ns
+
+        tracer.shutdown()
+
+        avg_latency_us = (total_elapsed_ns / num_spans) / 1_000.0
+        print(f"\n🛡️ [NanoShield Benchmark Result] Mean Latency with 4 Active Guardrails: {avg_latency_us:.3f} µs (Target: < 15.0 µs)")
+
+        # Strict SLA check: must be under 15 microseconds even with all 4 guardrails active
+        assert avg_latency_us < 15.0, f"NanoShield span overhead {avg_latency_us:.2f} µs exceeded 15 µs SLA!"
+
+
 def test_capsule_generation_latency():
     """Verify that generating a standalone capsule for a 50-span trace completes in < 30 ms."""
     mock_spans = []

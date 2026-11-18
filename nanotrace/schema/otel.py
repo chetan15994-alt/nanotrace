@@ -46,6 +46,7 @@ class GenAIAttributes:
     TOOL_CALL_ID = "gen_ai.tool.call_id"
     TOOL_ARGUMENTS = "gen_ai.tool.arguments"
     TOOL_OUTPUT = "gen_ai.tool.output"
+    TOOL_RESPONSE = "gen_ai.tool.output"
     TOOL_STATUS = "gen_ai.tool.status"
 
     # Retrieval / RAG

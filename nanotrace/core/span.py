@@ -71,6 +71,41 @@ class Span:
         return SpanContext(trace_id=self.trace_id, span_id=self.span_id)
 
     @property
+    def prompt_payload(self) -> str:
+        """Returns the prompt or input payload as a string or serialized JSON."""
+        val = (
+            self.attributes.get(GenAIAttributes.PROMPT)
+            or self.attributes.get(GenAIAttributes.MESSAGES)
+            or self.attributes.get(GenAIAttributes.TOOL_ARGUMENTS)
+            or ""
+        )
+        if isinstance(val, (dict, list)):
+            return json.dumps(val, default=str)
+        return str(val)
+
+    @prompt_payload.setter
+    def prompt_payload(self, value: Any) -> None:
+        """Set the prompt payload."""
+        self.attributes[GenAIAttributes.PROMPT] = value
+
+    @property
+    def completion_payload(self) -> str:
+        """Returns the completion or output payload as a string or serialized JSON."""
+        val = (
+            self.attributes.get(GenAIAttributes.COMPLETION)
+            or self.attributes.get(GenAIAttributes.TOOL_OUTPUT)
+            or ""
+        )
+        if isinstance(val, (dict, list)):
+            return json.dumps(val, default=str)
+        return str(val)
+
+    @completion_payload.setter
+    def completion_payload(self, value: Any) -> None:
+        """Set the completion payload."""
+        self.attributes[GenAIAttributes.COMPLETION] = value
+
+    @property
     def duration_ns(self) -> int:
         """Duration in nanoseconds."""
         if self.end_time_ns is None:

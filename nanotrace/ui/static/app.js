@@ -9,6 +9,8 @@ let activeTraceSpans = [];
 let selectedSpanId = null;
 let currentDb = ""; // empty means server default
 let currentLens = localStorage.getItem("nanotrace_active_lens") || "business";
+let currentReplaySpanId = null;
+let lastForkedTraceId = null;
 
 // Initialize on DOM ready
 document.addEventListener("DOMContentLoaded", async () => {
@@ -102,7 +104,34 @@ function switchView(viewName) {
 // ==========================================================================
 
 async function loadDashboard() {
-  await Promise.all([loadStats(), loadTraces()]);
+  await Promise.all([loadStats(), loadTraces(), loadShieldStats()]);
+}
+
+async function loadShieldStats() {
+  try {
+    const url = currentDb ? `/api/shield/stats?db=${encodeURIComponent(currentDb)}` : "/api/shield/stats";
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data) return;
+
+    const loopsEl = document.getElementById("shieldLoopsCount");
+    const savedEl = document.getElementById("shieldSavedUsd");
+    const badgeEl = document.getElementById("shieldStatusBadge");
+
+    if (loopsEl) loopsEl.innerText = `🔄 ${data.loops_intercepted || 0} Runaway Loops Intercepted`;
+    if (savedEl) savedEl.innerText = `💰 $${Number(data.estimated_spend_saved_usd || 0).toFixed(2)} Spend Saved`;
+    if (badgeEl) {
+      if (data.total_tripped > 0) {
+        badgeEl.className = "shield-badge alert";
+        badgeEl.innerText = `● ${data.total_tripped} BREACHES INTERCEPTED`;
+      } else {
+        badgeEl.className = "shield-badge ok";
+        badgeEl.innerText = "● ACTIVE & MONITORING";
+      }
+    }
+  } catch (err) {
+    console.debug("Failed to load shield stats", err);
+  }
 }
 
 async function loadStats() {
@@ -348,6 +377,29 @@ function renderBusinessLens(spans) {
   spans.forEach(s => {
     if (s.span_id === rootSpan.span_id && spans.length > 1) return;
 
+    const isShieldTripped = s.attributes_json && (
+      s.attributes_json.includes('"nanotrace.shield.tripped": true') || 
+      s.attributes_json.includes('"nanotrace.shield.tripped":true')
+    );
+
+    if (isShieldTripped) {
+      cards.push(`
+        <div class="biz-chat-card" style="border: 1.5px solid var(--color-error); background: rgba(239, 68, 68, 0.06);">
+          <div class="biz-card-head">
+            <span class="biz-tag" style="color:var(--color-error); font-weight:800;">🛡️ NanoShield Active Circuit Breaker Intercepted</span>
+            <span style="font-size:0.75rem; color:var(--color-error); font-weight:700;">HALTED IN-PROCESS (&lt; 1 µs)</span>
+          </div>
+          <div class="biz-body" style="border-left: 4px solid var(--color-error);">
+            <strong>${escapeHtml(s.status_message || 'Circuit breaker tripped.')}</strong>
+            <p style="margin-top:6px; font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+              NanoShield actively intercepted runaway execution at this node before API bills or runaway recursion escalated.
+            </p>
+          </div>
+        </div>
+      `);
+      return;
+    }
+
     const isTool = s.gen_ai_operation === "execute_tool" || s.gen_ai_tool_name;
     const isChat = s.gen_ai_operation === "chat";
 
@@ -508,6 +560,7 @@ function renderWaterfall(spans) {
         <div class="span-name-col" style="padding-left: ${indentPx}px">
           <span class="kind-badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
           <span class="span-text" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
+          <button class="btn-fork-waterfall" onclick="event.stopPropagation(); openTimeTravelModal('${s.span_id}')" title="Time-Travel: Fork from this node">🔀 Fork</button>
         </div>
         <div class="span-timeline-track">
           <div class="${barClass}" style="left: ${startOffset}%; width: ${widthPct}%;"></div>
@@ -636,6 +689,149 @@ function copyTraceId() {
   const orig = btn.innerHTML;
   btn.innerHTML = `<span>Copied!</span>`;
   setTimeout(() => { btn.innerHTML = orig; }, 1500);
+}
+
+// ==========================================================================
+// Time-Travel Agent Debugger & Replay Engine
+// ==========================================================================
+
+async function openTimeTravelModal(spanId) {
+  currentReplaySpanId = spanId;
+  const modal = document.getElementById("replayModalOverlay");
+  const diffBox = document.getElementById("replayDiffBox");
+  if (!modal) return;
+
+  if (diffBox) diffBox.style.display = "none";
+
+  const span = activeTraceSpans.find(s => s.span_id === spanId);
+  const nodeTitle = span ? span.name : "Span " + spanId.slice(0, 8);
+  const nameEl = document.getElementById("replayNodeName");
+  if (nameEl) nameEl.innerText = `Fork & Replay: ${nodeTitle}`;
+
+  // Fetch lineage context
+  try {
+    const url = currentDb ? `/api/replay/${spanId}/context?db=${encodeURIComponent(currentDb)}` : `/api/replay/${spanId}/context`;
+    const res = await fetch(url);
+    const ctx = await res.json();
+
+    // Populate lineage chips
+    const chipsEl = document.getElementById("replayLineageChips");
+    if (chipsEl) {
+      if (ctx.ancestors && ctx.ancestors.length > 0) {
+        chipsEl.innerHTML = ctx.ancestors.map(a => `<span class="lineage-chip">${escapeHtml(a.name)}</span> → `).join("") + 
+          `<span class="lineage-chip" style="font-weight:700; color:var(--accent-primary);">${escapeHtml(nodeTitle)}</span>`;
+      } else {
+        chipsEl.innerHTML = `<span class="lineage-chip" style="font-weight:700; color:var(--accent-primary);">Root: ${escapeHtml(nodeTitle)}</span>`;
+      }
+    }
+
+    // Populate prompt input
+    let pText = span ? span.prompt_payload : "";
+    try {
+      const parsed = JSON.parse(pText);
+      if (typeof parsed === "string") pText = parsed;
+    } catch (_) {}
+    const pInput = document.getElementById("replayPromptInput");
+    if (pInput) pInput.value = pText || "";
+
+    // Set model
+    const m = (span && span.gen_ai_request_model) ? span.gen_ai_request_model : "gpt-4o-mini";
+    const selectEl = document.getElementById("replayModelSelect");
+    if (selectEl) {
+      const hasOpt = Array.from(selectEl.options).some(o => o.value === m);
+      if (hasOpt) selectEl.value = m;
+      else selectEl.value = "gpt-4o-mini";
+    }
+  } catch (err) {
+    console.error("Error loading replay context", err);
+  }
+
+  modal.classList.add("open");
+}
+
+function closeReplayModal(e) {
+  if (e && e.target !== document.getElementById("replayModalOverlay")) return;
+  const modal = document.getElementById("replayModalOverlay");
+  if (modal) modal.classList.remove("open");
+  currentReplaySpanId = null;
+}
+
+async function executeReplayBranch() {
+  if (!currentReplaySpanId) return;
+
+  const btn = document.getElementById("btnExecuteReplay");
+  const origBtnText = btn.innerHTML;
+  btn.innerHTML = `<span>⏳ Re-executing in-process...</span>`;
+  btn.disabled = true;
+
+  const prompt = document.getElementById("replayPromptInput").value;
+  const model = document.getElementById("replayModelSelect").value;
+  const temp = parseFloat(document.getElementById("replayTempSlider").value) || 0.7;
+
+  try {
+    const url = currentDb 
+      ? `/api/traces/${activeTraceId}/fork?db=${encodeURIComponent(currentDb)}` 
+      : `/api/traces/${activeTraceId}/fork`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        span_id: currentReplaySpanId,
+        prompt: prompt,
+        model: model,
+        temperature: temp,
+      }),
+    });
+
+    const forkRes = await res.json();
+    lastForkedTraceId = forkRes.forked_trace_id;
+
+    // Render diff results
+    const scorecardsEl = document.getElementById("diffScorecards");
+    if (scorecardsEl) {
+      scorecardsEl.innerHTML = `
+        <div class="diff-metric-cell">
+          <span class="diff-metric-label">Duration</span>
+          <span class="diff-metric-val">${forkRes.original_duration_ms}ms → ${forkRes.forked_duration_ms}ms</span>
+        </div>
+        <div class="diff-metric-cell">
+          <span class="diff-metric-label">Tokens</span>
+          <span class="diff-metric-val">${forkRes.original_tokens} → ${forkRes.forked_tokens}</span>
+        </div>
+        <div class="diff-metric-cell">
+          <span class="diff-metric-label">Cost</span>
+          <span class="diff-metric-val">$${Number(forkRes.original_cost_usd || 0).toFixed(5)} → $${Number(forkRes.forked_cost_usd || 0).toFixed(5)}</span>
+        </div>
+        <div class="diff-metric-cell">
+          <span class="diff-metric-label">Model</span>
+          <span class="diff-metric-val">${escapeHtml(forkRes.model)}</span>
+        </div>
+      `;
+    }
+
+    const origEl = document.getElementById("diffOrigText");
+    const forkedEl = document.getElementById("diffForkedText");
+    if (origEl) origEl.innerText = forkRes.original_completion || "(Empty original completion)";
+    if (forkedEl) forkedEl.innerText = forkRes.forked_completion || "(Forked completion output)";
+    
+    const diffBox = document.getElementById("replayDiffBox");
+    if (diffBox) diffBox.style.display = "block";
+  } catch (err) {
+    alert("Replay execution failed: " + err.message);
+  } finally {
+    btn.innerHTML = origBtnText;
+    btn.disabled = false;
+  }
+}
+
+async function switchToForkedTrace() {
+  if (!lastForkedTraceId) return;
+  const modal = document.getElementById("replayModalOverlay");
+  if (modal) modal.classList.remove("open");
+
+  await loadDashboard();
+  selectTrace(lastForkedTraceId);
 }
 
 function switchGuideCodeTab(tabName, btn) {

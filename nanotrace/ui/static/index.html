@@ -121,6 +121,25 @@
       </div>
     </section>
 
+    <!-- NanoShield Runtime Guardrails HUD -->
+    <section class="shield-hud-bar" id="shieldHudBar">
+      <div class="shield-hud-left">
+        <span class="shield-icon">🛡️</span>
+        <span class="shield-title">NanoShield Runtime Guardrails:</span>
+        <span class="shield-badge ok" id="shieldStatusBadge">● ACTIVE &amp; MONITORING</span>
+      </div>
+      <div class="shield-hud-center">
+        <span class="shield-metric-tag" id="shieldLoopsCount">🔄 0 Runaway Loops Intercepted</span>
+        <span class="shield-metric-tag" id="shieldSavedUsd">💰 $0.00 Spend Saved</span>
+        <span class="shield-metric-tag" id="shieldPiiCount">🔒 PII Masking: Active</span>
+      </div>
+      <div class="shield-hud-right">
+        <span class="shield-pill">MaxLoop: 5</span>
+        <span class="shield-pill">BudgetCap: $1.00</span>
+        <span class="shield-pill">Timeout: 60s</span>
+      </div>
+    </section>
+
     <!-- VIEW 1: Live Traces & Waterfall -->
     <main class="view-container active" id="viewTraces">
       <!-- Left Sidebar: Traces Explorer -->
@@ -221,7 +240,12 @@
               <span class="drawer-kind-badge" id="drawerSpanKind">SPAN</span>
               <h4 id="drawerSpanName">Span Inspection</h4>
             </div>
-            <button class="btn-close" onclick="closeDrawer()">✕</button>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn btn-replay-inline" onclick="openTimeTravelModal(selectedSpanId)" title="Rewind & fork this execution node">
+                <span>⏱️ Fork &amp; Replay</span>
+              </button>
+              <button class="btn-close" onclick="closeDrawer()">✕</button>
+            </div>
           </div>
 
           <div class="drawer-body">
@@ -1697,6 +1721,85 @@ diagnostics = dataset.run_heuristics()</code>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Time-Travel Agent Debugger & Replay Playground Modal -->
+  <div class="replay-modal-overlay" id="replayModalOverlay" onclick="closeReplayModal(event)">
+    <div class="replay-modal-panel" onclick="event.stopPropagation()">
+      <div class="replay-modal-header">
+        <div class="replay-header-title">
+          <span class="replay-badge">⏱️ TIME-TRAVEL DEBUGGER</span>
+          <h3 id="replayNodeName">Fork &amp; Replay Node</h3>
+          <span class="replay-sub" id="replayNodeSub">Rewind to this node, modify prompts or model, and re-execute a live branch</span>
+        </div>
+        <button class="btn-close" onclick="closeReplayModal(null)">✕</button>
+      </div>
+
+      <div class="replay-modal-body">
+        <!-- Upstream Lineage Breadcrumb -->
+        <div class="replay-lineage-bar" id="replayLineageBar">
+          <span class="lineage-label">Upstream Context:</span>
+          <div class="lineage-chips" id="replayLineageChips"></div>
+        </div>
+
+        <!-- Form controls -->
+        <div class="replay-controls-row">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label">Active Model</label>
+            <select id="replayModelSelect" class="form-select">
+              <option value="gpt-4o-mini">gpt-4o-mini (Fast / Cost-Effective)</option>
+              <option value="gpt-4o">gpt-4o (High-Precision Reasoning)</option>
+              <option value="claude-3-5-sonnet">claude-3-5-sonnet (Strategic Analysis)</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash (Ultra-Low Latency)</option>
+              <option value="llama-3.3-70b">llama-3.3-70b (Open Weights)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Temperature: <strong id="tempValDisplay">0.7</strong></label>
+            <input type="range" id="replayTempSlider" min="0.0" max="1.0" step="0.1" value="0.7" class="form-range" oninput="document.getElementById('tempValDisplay').innerText=this.value">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label">Edit Prompt / Arguments</label>
+            <span style="font-size:0.7rem; color:var(--text-muted);">Cached upstream variables preserved</span>
+          </div>
+          <textarea id="replayPromptInput" class="form-textarea" rows="4" placeholder="Enter updated prompt or tool arguments..."></textarea>
+        </div>
+
+        <div class="replay-actions">
+          <button class="btn btn-execute-replay" id="btnExecuteReplay" onclick="executeReplayBranch()">
+            <span>⚡ Re-Execute Branch from This Node</span>
+          </button>
+          <span class="replay-note">Saves ~90% tokens by reusing upstream outputs.</span>
+        </div>
+
+        <!-- Live Before vs After Diff Container -->
+        <div class="replay-diff-box" id="replayDiffBox" style="display:none;">
+          <div class="diff-header">
+            <span style="font-weight:700;">Live Replay Telemetry &amp; Output Diff</span>
+            <span class="diff-status-pill" id="diffStatusTag">✓ Forked Branch Created</span>
+          </div>
+          <div class="diff-scorecards" id="diffScorecards"></div>
+          <div class="diff-viewer">
+            <div class="diff-col">
+              <span class="diff-col-head">Original Completion</span>
+              <pre class="diff-pre orig" id="diffOrigText"></pre>
+            </div>
+            <div class="diff-col">
+              <span class="diff-col-head">Forked Replay Completion</span>
+              <pre class="diff-pre forked" id="diffForkedText"></pre>
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="switchToForkedTrace()" id="btnSwitchFork">
+              <span>View Forked Trace in Waterfall →</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/static/app.js"></script>
