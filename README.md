@@ -2,9 +2,9 @@
 
 # NanoTrace
 
-### High-Performance OpenTelemetry Tracing and Evaluation Engine for AI Agents
+### The Zero-Overhead Reliability Engine for Autonomous AI Agents
 
-**The DuckDB of AI Observability**
+**Microsecond Tracing • Active Runaway Killswitches • Deterministic CI/CD Testing • Embedded DuckDB Lakehouse**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.9%20--%203.14-blue.svg)](https://www.python.org/downloads/)
@@ -13,9 +13,9 @@
 [![Storage](https://img.shields.io/badge/Storage-DuckDB_%2B_Parquet-orange.svg)](https://duckdb.org)
 
 <p align="center">
-  Record agent loops, tool executions, and LLM calls in microseconds.<br>
-  Persist directly to embedded DuckDB and Parquet. Zero Docker containers. Zero SaaS bills.<br>
-  Transform execution traces directly into DeepEval and Ragas evaluation datasets in one line of code.
+  Record agent loops, tool executions, and LLM calls in <b>3.5 microseconds</b>.<br>
+  Actively intercept runaway while-loops and token budget blowouts in <b>7.9 microseconds</b>.<br>
+  Run deterministic CI/CD regression gates with code 0/1 exits. Zero Docker containers. Zero SaaS bills.
 </p>
 
 ---
@@ -25,80 +25,82 @@
 ## Executive Summary
 
 ### What is NanoTrace?
-NanoTrace is an embedded, zero-cost OpenTelemetry tracing and evaluation engine designed specifically for AI agents, multi-agent swarms, and LLM applications. It provides enterprise-grade observability by running entirely inside your Python application process, persisting traces to an embedded DuckDB columnar file (`./.traces/nanotrace.duckdb`) and native ZSTD-compressed Parquet.
+NanoTrace is the embedded, zero-cost reliability and observability engine designed specifically for AI agents, multi-agent swarms, and LLM applications. It provides enterprise-grade telemetry, active runtime safety guardrails, and automated CI/CD evaluation by running entirely inside your Python application process—persisting execution traces to an embedded DuckDB columnar file (`./.traces/nanotrace.duckdb`) and streaming ZSTD-compressed Parquet.
 
-### The Analogy
+### The Analogy: The DuckDB / SQLite of AI Observability
 Consider how database architectures evolved: traditional enterprise database platforms (Oracle, Snowflake) required remote server clusters, cloud credentials, network hops, and expensive subscriptions. SQLite and DuckDB revolutionized this paradigm by embedding powerful relational and analytical database engines directly into application processes.
 
-**NanoTrace applies this exact principle to AI observability:**
-Instead of routing your application's prompts, tool arguments, and customer data over the public internet to costly third-party hosted SaaS collectors (such as Datadog, LangSmith, or Arize), NanoTrace captures telemetry in-process with under 15 microseconds of overhead. You gain instant OpenTelemetry compliance, an interactive timeline dashboard, and evaluation datasets with zero network lag, zero cloud infrastructure, and zero monthly bills.
+**NanoTrace applies this exact principle to AI observability and agent reliability:**  
+Instead of routing your application's prompts, tool arguments, and customer data over the public internet to costly third-party hosted SaaS collectors (like LangSmith or Arize) or running heavy multi-container Docker clusters (ClickHouse, Postgres, Redis), NanoTrace captures telemetry in-process with **under 4 microseconds of overhead**. 
 
-### The Gaps NanoTrace Solves
+You gain instant OpenTelemetry compliance, active runaway loop killswitches, automated CI/CD quality gates, and an interactive local web dashboard with **zero network lag, zero cloud infrastructure, and zero monthly bills**.
+
+### The 5 Gaps NanoTrace Solves
 1. **The Telemetry Cloud Bill Gap**: Hosted AI observability platforms charge per span and per token, frequently scaling to \$500 to \$3,000+ per month for production workloads. NanoTrace costs \$0.00.
-2. **The Data Privacy and PII Egress Gap**: Shipping raw prompts containing customer emails, financial transactions, or healthcare records to external SaaS vendors violates GDPR (Article 28), HIPAA, and enterprise zero-data-retention mandates. NanoTrace guarantees 100% data sovereignty by keeping telemetry strictly on-premises.
-3. **The Event Loop Latency Gap**: Remote HTTP telemetry exporters block agent event loops, adding 30 to 120 milliseconds of latency to every tool call and streaming token chunk. NanoTrace utilizes a non-blocking in-memory ring buffer that records spans in under 15 microseconds (< 0.015ms).
-4. **The Trace-to-Evaluation Gap**: Bridging production logs into evaluation frameworks (like DeepEval and Ragas) traditionally requires custom data scraping, formatting scripts, and glue code. NanoTrace exports directly to evaluation-ready datasets via a native 1-line Python API.
+2. **The Active Runtime Safety Gap**: Passive dashboards only chart runaway while-loops *after* you've spent \$500 on OpenAI. NanoShield actively intercepts runaway loops, token bombs, and budget blowouts in **7.9 µs before money is wasted**.
+3. **The Data Privacy & PII Egress Gap**: Shipping raw prompts containing customer emails, financial transactions, or healthcare records to external SaaS vendors violates GDPR (Article 28), HIPAA, and zero-data-retention mandates. NanoTrace guarantees 100% data sovereignty by keeping telemetry strictly in local DuckDB/Parquet files.
+4. **The Event Loop Latency Gap**: Remote HTTP telemetry exporters block agent event loops, adding 30 to 120 milliseconds of latency to every tool call. NanoTrace utilizes a non-blocking in-memory ring buffer that records spans in **3.5 microseconds (< 0.004 ms)**.
 5. **The Infrastructure Sprawl Gap**: Self-hosting traditional OpenTelemetry collectors requires maintaining Docker Compose clusters with PostgreSQL, Redis, ClickHouse, and Jaeger daemons. NanoTrace requires zero daemons and installs via a single `pip install nanotrace` command.
 
-### Target Personas
-* **AI Startups and Independent Builders**: Allocate engineering budgets toward model compute rather than monitoring infrastructure, while gaining immediate debugging visibility.
-* **Regulated Enterprise Engineering Teams (FinTech, Healthcare, Defense)**: Gain full AI governance and auditability without exposing confidential data or PII to third-party cloud services.
-* **AI Benchmark Researchers**: Execute hundreds of thousands of benchmark agent loops (e.g., SWE-bench, GAIA) without hitting SaaS ingestion quotas or incurring per-event fees.
-* **Local-First Developers**: Build, test, and debug agents completely offline without internet connectivity or external API dependencies.
-
 ---
 
-## Performance Benchmark
+## 60-Second Quickstart
 
-| Tracing Architecture | Main Thread Latency | Background RAM | Required Infrastructure | Monthly Cloud Ingestion Cost |
-| :--- | :--- | :--- | :--- | :--- |
-| **NanoTrace (Embedded DuckDB)** | **~3.8 µs (< 0.004 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
-| **NanoTrace + NanoShield (4 Guardrails Active)** | **~8.1 µs (< 0.010 ms)** | **~15 MB** | **None (`pip install`)** | **$0.00** |
-| **NanoPrompt Registry (Cached Lookup)** | **~0.07 µs (< 75 ns)** | **In-Memory** | **None** | **$0.00** |
-| **NanoDrift RAG Projection (Pure Python)** | **~1.15 ms (< 2.0 ms)** | **In-Memory** | **None** | **$0.00** |
-| **NanoTrace Red-Team Synthesis (13 Vectors)** | **~0.04 ms (< 0.1 ms)** | **In-Memory** | **None** | **$0.00** |
-| Remote SaaS (Langfuse / Datadog) | ~20,000–80,000 µs (20–80 ms) | ~40 MB | External Cloud Account | $50 – $500+/month |
-| Self-Hosted Collector Cluster | ~500–2,000 µs (0.5–2 ms) | ~1,500–4,000 MB | Docker + Postgres + ClickHouse | Server hosting expenses |
+Get started in 3 simple steps without writing boilerplate:
 
----
-
-## Installation
+### Step 1: Zero-Code Auto-Pilot Run
+Run your existing agent script with NanoTrace auto-pilot. It automatically traces execution in `< 4 µs`, enforces default loop runaway guardrails, and persists traces to DuckDB:
 
 ```bash
-# Standard installation
-pip install nanotrace
+# Prefix any Python script with 'nanotrace run'
+nanotrace run python my_agent.py
+```
 
-# Installation with interactive dashboard and evaluation bridges
-pip install "nanotrace[all]"
+### Step 2: Open the Local Dashboard
+Launch the zero-dependency local analytics dashboard on port 7777:
+
+```bash
+nanotrace ui
+```
+Navigate to `http://127.0.0.1:7777` to inspect live waterfalls, token economics, active guardrail intercepts, and the interactive SVG Swarm DAG visualizer.
+
+### Step 3: Run Deterministic CI/CD Quality Gates
+Turn recorded traces into golden evaluation datasets and enforce quality thresholds in GitHub Actions:
+
+```bash
+# Automated CI/CD gate: exits code 0 on pass, code 1 on regression breach
+nanotrace test --dataset production_v1 --fail-under 0.85
 ```
 
 ---
 
-## Quickstart
+## Programmatic SDK Integration
 
-### 1. Instrumenting Agents and Tools
+For fine-grained programmatic control, decorate your agents and tools directly in Python:
 
 ```python
 import nanotrace
+from nanotrace.guardrails.breakers import MaxLoopBreaker, BudgetCapBreaker
 from openai import OpenAI
 
-# Initialize the embedded trace engine (creates ./.traces/nanotrace.duckdb)
-nanotrace.init()
+# Initialize with active runtime guardrails
+nanotrace.init(
+    circuit_breakers=[
+        MaxLoopBreaker(limit=15),          # Kills infinite tool loops
+        BudgetCapBreaker(max_trace_usd=1.50) # Halts trace if spend exceeds $1.50
+    ]
+)
 
 client = OpenAI()
 
-# Decorate tool execution
 @nanotrace.trace_tool(name="search_database")
 def search_database(query: str):
     return {"results": ["OpenTelemetry GenAI is a vendor-neutral CNCF standard."]}
 
-# Decorate agent workflow
 @nanotrace.trace_agent(name="ResearchAgent", agent_type="researcher")
 def run_agent(query: str):
-    # Tool call (automatically recorded as a child span)
     docs = search_database(query)
     
-    # LLM reasoning step with GenAI attributes
     with nanotrace.span("chat gpt-4o-mini", attributes={"gen_ai.request.model": "gpt-4o-mini"}):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -109,11 +111,8 @@ def run_agent(query: str):
         )
         return response.choices[0].message.content
 
-# Execute workflow
 output = run_agent("Explain OpenTelemetry GenAI semantic conventions")
 print(output)
-
-# Force flush remaining spans to storage
 nanotrace.flush()
 ```
 
