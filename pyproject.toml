@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "nanotrace"
+name = "nanotrace-ai"
 version = "0.1.0"
 description = "⚡️ Ultra-low latency, zero-infra OpenTelemetry tracing & evaluation engine for AI agents and LLMs. The DuckDB of AI Observability."
 readme = "README.md"

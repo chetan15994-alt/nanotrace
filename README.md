@@ -40,7 +40,22 @@ You gain instant OpenTelemetry compliance, active runaway loop killswitches, aut
 2. **The Active Runtime Safety Gap**: Passive dashboards only chart runaway while-loops *after* you've spent \$500 on OpenAI. NanoShield actively intercepts runaway loops, token bombs, and budget blowouts in **7.9 µs before money is wasted**.
 3. **The Data Privacy & PII Egress Gap**: Shipping raw prompts containing customer emails, financial transactions, or healthcare records to external SaaS vendors violates GDPR (Article 28), HIPAA, and zero-data-retention mandates. NanoTrace guarantees 100% data sovereignty by keeping telemetry strictly in local DuckDB/Parquet files.
 4. **The Event Loop Latency Gap**: Remote HTTP telemetry exporters block agent event loops, adding 30 to 120 milliseconds of latency to every tool call. NanoTrace utilizes a non-blocking in-memory ring buffer that records spans in **3.5 microseconds (< 0.004 ms)**.
-5. **The Infrastructure Sprawl Gap**: Self-hosting traditional OpenTelemetry collectors requires maintaining Docker Compose clusters with PostgreSQL, Redis, ClickHouse, and Jaeger daemons. NanoTrace requires zero daemons and installs via a single `pip install nanotrace` command.
+5. **The Infrastructure Sprawl Gap**: Self-hosting traditional OpenTelemetry collectors requires maintaining Docker Compose clusters with PostgreSQL, Redis, ClickHouse, and Jaeger daemons. NanoTrace requires zero daemons and installs via a single `pip install nanotrace-ai` command.
+
+---
+
+## Installation
+
+```bash
+# Core engine (DuckDB Lakehouse, OpenTelemetry Tracer, CLI, NanoShield Guardrails)
+pip install nanotrace-ai
+
+# With embedded local web dashboard (FastAPI + Uvicorn)
+pip install "nanotrace-ai[ui]"
+
+# Full battery (Dashboard, DeepEval/Ragas LLM evals, PydanticAI showcase)
+pip install "nanotrace-ai[all]"
+```
 
 ---
 
