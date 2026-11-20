@@ -6,11 +6,12 @@ Includes atexit handlers to guarantee zero span loss on application shutdown.
 
 from __future__ import annotations
 
+import os
 import time
 import atexit
 import logging
 import threading
-from typing import Optional
+from typing import Optional, Any
 
 from nanotrace.core.buffer import SpanBuffer
 from nanotrace.storage.base import StorageSink
@@ -27,11 +28,20 @@ class FlushWorker:
         sink: StorageSink,
         flush_interval_seconds: float = 0.25,
         batch_size: int = 500,
+        remote_exporter: Optional[Any] = None,
     ):
         self.buffer = buffer
         self.sink = sink
         self.flush_interval = flush_interval_seconds
         self.batch_size = batch_size
+
+        if remote_exporter is not None:
+            self.remote_exporter = remote_exporter
+        elif os.environ.get("NANOTRACE_ENDPOINT"):
+            from nanotrace.client import RemoteSpanExporter
+            self.remote_exporter = RemoteSpanExporter()
+        else:
+            self.remote_exporter = None
 
         self._shutdown_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -68,10 +78,14 @@ class FlushWorker:
             self._shutdown_event.wait(timeout=self.flush_interval)
 
     def flush_once(self) -> int:
-        """Flush one batch of queued spans to sink."""
+        """Flush one batch of queued spans to sink and remote exporter."""
         spans = self.buffer.drain(max_items=self.batch_size)
         if spans:
-            return self.sink.write_spans(spans)
+            written = self.sink.write_spans(spans)
+            if self.remote_exporter and getattr(self.remote_exporter, "is_configured", False):
+                for sp in spans:
+                    self.remote_exporter.enqueue_span(sp)
+            return written
         return 0
 
     def flush(self) -> int:
@@ -94,6 +108,12 @@ class FlushWorker:
 
         # Flush any remaining spans
         self.flush()
+
+        if self.remote_exporter and hasattr(self.remote_exporter, "shutdown"):
+            try:
+                self.remote_exporter.shutdown(timeout=1.0)
+            except Exception:
+                pass
 
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=timeout)

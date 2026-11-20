@@ -883,6 +883,74 @@ def fleet_pull(
     console.print(f"[bold green]✓ Fleet Ingestion Complete: Aggregated {imported} new spans into '{db_path}'![/bold green]")
 
 
+@fleet_app.command("push")
+def fleet_push(
+    remote: Optional[str] = typer.Option(None, "--remote", "-r", help="Remote NanoTrace Server URL (e.g. http://127.0.0.1:8000)"),
+    api_key: Optional[str] = typer.Option(None, "--key", "-k", help="API Key (nt_live_...)"),
+    db_path: str = typer.Option("./.traces/nanotrace.duckdb", "--db", "-d", help="Path to DuckDB file"),
+    workspace_id: Optional[str] = typer.Option(None, "--workspace", "-w", help="Target Workspace ID"),
+    project_id: Optional[str] = typer.Option(None, "--project", "-p", help="Target Project ID"),
+):
+    """Stream local traces from DuckDB to a remote NanoTrace Server control plane."""
+    import os, json, urllib.request
+    from nanotrace.client import load_client_config
+
+    cfg = load_client_config()
+    endpoint = (remote or cfg.get("endpoint") or os.environ.get("NANOTRACE_ENDPOINT") or "").rstrip("/")
+    key = api_key or cfg.get("api_key") or os.environ.get("NANOTRACE_API_KEY")
+    ws_id = workspace_id or cfg.get("workspace_id") or os.environ.get("NANOTRACE_WORKSPACE_ID")
+    proj_id = project_id or cfg.get("project_id") or os.environ.get("NANOTRACE_PROJECT_ID")
+
+    if not endpoint or not key:
+        console.print("[bold red]❌ Error: Remote endpoint and API key required. Run 'nanotrace login' or pass --remote and --key.[/bold red]")
+        raise typer.Exit(code=1)
+
+    import duckdb
+    if not os.path.exists(db_path):
+        console.print(f"[yellow]No local database found at {db_path}[/yellow]")
+        return
+
+    conn = duckdb.connect(db_path, read_only=True)
+    try:
+        tables = [t[0] for t in conn.execute("SHOW TABLES").fetchall()]
+        if "spans" not in tables:
+            console.print(f"[yellow]No 'spans' table found in {db_path}[/yellow]")
+            return
+        rows = conn.execute("SELECT * FROM spans").fetchall()
+        cols = [d[0] for d in conn.description]
+        records = [dict(zip(cols, r)) for r in rows]
+    finally:
+        conn.close()
+
+    if not records:
+        console.print("[yellow]Zero spans found in local database to push.[/yellow]")
+        return
+
+    # Post batch to remote server
+    url = f"{endpoint}/api/v1/ingest"
+    payload = {
+        "workspace_id": ws_id,
+        "project_id": proj_id,
+        "node_id": f"cli_push_{os.getpid()}",
+        "spans": records,
+    }
+    data = json.dumps(payload, default=str).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json", "X-API-Key": key},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15.0) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            console.print(f"[bold green]✓ NanoFleet Cloud Push Complete: Ingested {result.get('accepted_spans', len(records))} spans into {endpoint}![/bold green]")
+            console.print(f"⏱️ Remote Ingest Latency: [cyan]{result.get('latency_ms', 0):.2f} ms[/cyan]")
+    except Exception as e:
+        console.print(f"[bold red]❌ NanoFleet Cloud Push Failed: {e}[/bold red]")
+        raise typer.Exit(code=1)
+
+
 app.add_typer(fleet_app, name="fleet")
 
 
@@ -952,6 +1020,101 @@ def analyze_topology(
                 f"{r.estimated_savings_pct:.1f}%",
             )
         console.print(rec_table)
+
+
+# ==============================================================================
+# Phase 2: NanoTrace Server Control Plane & Client Login Commands
+# ==============================================================================
+
+server_app = typer.Typer(help="NanoTrace Server: Multi-Tenant Team Control Plane & Ingestion Relay")
+
+
+@server_app.command("start")
+def server_start(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Bind host"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port to listen on"),
+    db_path: Optional[str] = typer.Option(None, "--db-path", help="SQLite metadata DB path"),
+    lakehouse_dir: Optional[str] = typer.Option(None, "--lakehouse", help="Multi-tenant Parquet lakehouse root dir"),
+):
+    """Launch the multi-tenant NanoTrace Server control plane."""
+    import uvicorn
+    from nanotrace.server import create_server_app
+
+    app_instance = create_server_app(db_path=db_path, lakehouse_dir=lakehouse_dir)
+    console.print(f"\n[bold green]🚀 Launching NanoTrace Team Server on http://{host}:{port}[/bold green]")
+    console.print(f"📦 Lakehouse Storage: [cyan]{app_instance.state.ingestion_relay.lakehouse_dir}[/cyan]")
+    console.print(f"🗄️ Metadata Database: [cyan]{app_instance.state.storage.db_path}[/cyan]\n")
+    uvicorn.run(app_instance, host=host, port=port)
+
+
+@server_app.command("create-workspace")
+def server_create_workspace(
+    name: str = typer.Option(..., "--name", "-n", help="Workspace display name"),
+    slug: str = typer.Option(..., "--slug", "-s", help="Unique URL slug"),
+    email: str = typer.Option(..., "--email", "-e", help="Owner email"),
+    plan: str = typer.Option("team", "--plan", help="Plan tier (hobby, team, enterprise)"),
+    db_path: Optional[str] = typer.Option(None, "--db-path", help="SQLite metadata DB path"),
+):
+    """Create a new multi-tenant organization/workspace."""
+    from nanotrace.server import ServerMetadataStorage, Workspace
+
+    storage = ServerMetadataStorage(db_path=db_path)
+    ws = Workspace(name=name, slug=slug, owner_email=email, plan=plan)
+    saved = storage.create_workspace(ws)
+    console.print(f"[bold green]✓ Created Workspace '{saved.name}'[/bold green]")
+    console.print(f"ID: [cyan]{saved.workspace_id}[/cyan] | Slug: [cyan]{saved.slug}[/cyan] | Plan: [green]{saved.plan}[/green]")
+
+
+@server_app.command("create-key")
+def server_create_key(
+    workspace_id: str = typer.Option(..., "--workspace-id", "-w", help="Workspace ID"),
+    name: str = typer.Option("Fleet Ingestion Key", "--name", "-n", help="Key name"),
+    admin: bool = typer.Option(False, "--admin", help="Create Admin key instead of Ingest-only key"),
+    db_path: Optional[str] = typer.Option(None, "--db-path", help="SQLite metadata DB path"),
+):
+    """Generate a cryptographic API key for fleet ingestion or admin control."""
+    from nanotrace.server import ServerMetadataStorage, KeyType, generate_api_key
+
+    storage = ServerMetadataStorage(db_path=db_path)
+    key_type = KeyType.ADMIN if admin else KeyType.INGEST_ONLY
+    api_key_obj, raw_token = generate_api_key(
+        workspace_id=workspace_id,
+        name=name,
+        key_type=key_type,
+    )
+    storage.create_api_key(api_key_obj)
+
+    console.print(f"\n[bold green]✓ Generated API Key: {name}[/bold green]")
+    console.print(f"Key ID: [cyan]{api_key_obj.key_id}[/cyan] | Prefix: [cyan]{api_key_obj.key_prefix}...[/cyan]")
+    console.print(f"Type: [magenta]{key_type.value}[/magenta]")
+    console.print(f"\n[bold yellow]API Secret (Copy now, will not be shown again):[/bold yellow]")
+    console.print(f"[bold white on blue] {raw_token} [/bold white on blue]\n")
+
+
+app.add_typer(server_app, name="server")
+
+
+@app.command("login")
+def client_login(
+    endpoint: str = typer.Option(..., "--endpoint", "-e", help="NanoTrace Server endpoint URL (e.g. http://127.0.0.1:8000)"),
+    api_key: str = typer.Option(..., "--key", "-k", help="API Key (nt_live_... or nt_adm_...)"),
+    workspace_id: Optional[str] = typer.Option(None, "--workspace", "-w", help="Default Workspace ID"),
+    project_id: Optional[str] = typer.Option(None, "--project", "-p", help="Default Project ID"),
+):
+    """Authenticate and configure local CLI to connect to a remote NanoTrace Server."""
+    import time
+    from nanotrace.client import save_client_config, get_default_config_path
+
+    cfg = {
+        "endpoint": endpoint.rstrip("/"),
+        "api_key": api_key,
+        "workspace_id": workspace_id,
+        "project_id": project_id,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    save_client_config(cfg)
+    console.print(f"[bold green]✓ Successfully authenticated with NanoTrace Server at {endpoint}![/bold green]")
+    console.print(f"Credentials saved to: [cyan]{get_default_config_path()}[/cyan]")
 
 
 if __name__ == "__main__":

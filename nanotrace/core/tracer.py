@@ -37,6 +37,7 @@ class NanoTracer:
         buffer_capacity: int = 50_000,
         flush_interval: float = 0.25,
         circuit_breakers: Optional[List[CircuitBreaker]] = None,
+        remote_exporter: Optional[Any] = None,
     ):
         self.sink = sink or DuckDBSink(db_path=db_path)
         self.buffer = SpanBuffer(max_capacity=buffer_capacity)
@@ -44,6 +45,7 @@ class NanoTracer:
             buffer=self.buffer,
             sink=self.sink,
             flush_interval_seconds=flush_interval,
+            remote_exporter=remote_exporter,
         )
         self.worker.start()
         self.circuit_breakers: List[CircuitBreaker] = list(circuit_breakers or [])
